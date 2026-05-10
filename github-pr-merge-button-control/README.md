@@ -22,7 +22,7 @@ Branch Protection Ruleを使えば多少の制御はできますが、以下の�
 
 <img alt="" src="merge-button-disabled.png">
 
-## 実装
+##使い方
 
 こちらがTampermonkeyスクリプトです。
 使用方法は[こちら](https://www.nxted.co.jp/blog/blog_detail?id=196)と同様なので、スクリプト部分だけ差し替えて適用してください。
