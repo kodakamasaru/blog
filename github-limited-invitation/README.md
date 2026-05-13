@@ -177,7 +177,7 @@ Google Chatと連動させたかったので、
 Google Chat(起動)+Google Apps Script(API, バッチ)+スプレッドシート(DB)
 の構成としましたが、どの部分についても別サービスに置き換え可能かと思います。
 導入する場合は運用しやすいようにカスタムしてみてください。
-例: Slack(起動)+Cloudfrare Workers(API, バッチ)+Cloudfrare D1(DB)<br/>
+例: Slack(起動)+Cloudflare Workers(API, バッチ)+Cloudflare D1(DB)<br/>
 
 最後まで読んでいただきありがとうございます。
 
