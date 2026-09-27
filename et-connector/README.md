@@ -82,7 +82,7 @@ etserverはTCPの2022番ポートで待ち受けます。
 ssh-keyscan localhost | ssh-keygen -lf -
 ```
 
-## ETの仕組み
+## 接続の流れ
 
 公式サイトには大まかな説明しかなく、プロトコルの仕様書もありません（[要望のIssue](https://github.com/MisterTea/EternalTerminal/issues/452)は立っていますが、そのままになっています）。
 そのため、C++のソースを読みながら実装しました。
@@ -96,9 +96,9 @@ ssh-keyscan localhost | ssh-keygen -lf -
 SSHは「鍵を受け取るため」だけに使い、すぐ閉じているのがポイントです。
 認証をSSHに任せているので、ET自体はパスワードや公開鍵の仕組みを持っていません。
 
-### 1. SSHで`etterminal`を起動する
+## 実装1: SSHで`etterminal`を起動する
 
-実行するコマンドはこれだけです。
+実行するコマンドは↓これだけです。
 
 ```bash
 echo 'XXXabcdefghijklm/0123456789abcdefghijklmnopqrstuv_xterm-256color' | etterminal --verbose=0
@@ -112,7 +112,7 @@ IDPASSKEY:aB3dE5fG7hJ9kL1m/（32文字の英数字）
 
 サーバ側で採番し直した値が返ってくるので、こちらを使います。
 
-### 2. 通信の暗号化
+## 実装2: 通信の暗号化
 
 etserverに繋いだあとの通信は、libsodiumの`crypto_secretbox`（XSalsa20-Poly1305）で暗号化されています。
 鍵はpasskeyの32文字をそのまま32バイトとして使います。
@@ -122,6 +122,7 @@ etserverに繋いだあとの通信は、libsodiumの`crypto_secretbox`（XSalsa
 これで同じ鍵でも、両方向でnonceが被らないようになっています。
 
 Dartでは[pinenacl](https://pub.dev/packages/pinenacl)（TweetNaClのpure Dart移植）を使いました。
+↓暗号化と、nonceを進める部分です。
 
 ```dart:et_cipher.dart
 Uint8List encrypt(List<int> plaintext) {
@@ -145,7 +146,7 @@ void _incrementNonce() {
 
 libsodiumと同じ結果になっているかは、PyNaClで作ったテストベクタと突き合わせて確認しています。
 
-### 3. 切れても復帰できる仕組み
+## 実装3: 切れても復帰できる仕組み
 
 ここがETの肝です。
 送信側は、暗号化済みのパケットを一定量（64MB）手元に残しておきます。
@@ -167,10 +168,10 @@ final catchup = EtCatchupBuffer.decode(
 link.add(frameProto(EtCatchupBuffer(local).encode()));
 ```
 
-再送するのは「一度暗号化したパケットそのもの」なので、nonceのカウンタがずれることもありません。
+↑で再送しているのは「一度暗号化したパケットそのもの」なので、nonceのカウンタがずれることもありません。
 よくできているなと思いました。
 
-### 4. dart_moshから参考にしたところ
+## 実装4: dart_moshから参考にしたところ
 
 ライブラリの切り分けはdart_moshに合わせました。
 
@@ -249,12 +250,13 @@ ETが本領を発揮するのは、画面ロックやアプリのバックグラ
 * 接続時のやり取り: 8バイトの整数（リトルエンディアン）＋本体
 * 接続後のパケット: 4バイトの整数（ビッグエンディアン）＋本体
 
-前者はC++のint64をそのままメモリの並びで書き出しているだけのようです。
-これに気づくまで、接続直後の応答がうまく読めませんでした。
+最初は全部同じ形式だと思い込んでいて、接続直後の応答がまったく読めませんでした。
+どうやら前者はC++のint64をそのままメモリの並びで書き出しているだけのようで、読み分けるようにしたところ読めるようになりました。
 
 ### MacのSSH経由だと`etterminal`が見つからない
 
-Macのsshdがコマンドを実行するときの`PATH`は`/usr/bin:/bin:/usr/sbin:/sbin`だけのようで、Homebrewで入れた`etterminal`が見つかりませんでした。
+ターミナルからは普通に`etterminal`が使えるので、最初はなぜ見つからないのかわかりませんでした。
+どうやらMacのsshdがコマンドを実行するときの`PATH`は`/usr/bin:/bin:/usr/sbin:/sbin`だけのようで、Homebrewで入れたコマンドは見えていなかった模様。
 起動コマンドの前に`PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"; export PATH;`を付けて解決しています。
 
 ### iPhone実機だけ「No route to host」になる
@@ -267,7 +269,7 @@ Macのsshdがコマンドを実行するときの`PATH`は`/usr/bin:/bin:/usr/sb
 <string>同じネットワーク上の Mac に SSH / Eternal Terminal で接続するために使います。</string>
 ```
 
-シミュレータでは`127.0.0.1`に繋いでいたので、実機で初めて気づきました。
+私の場合は、シミュレータでは`127.0.0.1`に繋いでいたので、実機に入れるまでまったく気づきませんでした。
 
 ### iPhoneのキーボードでバックスペースが効かない
 
