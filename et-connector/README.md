@@ -3,7 +3,7 @@
 ## 概要
 
 iPhoneからMacへ、SSHではなくEternal Terminal（以下ET）というプロトコルで接続してみました。
-iOSのET対応クライアントは既存のものもありますが、今回はDartでETクライアントのライブラリを自作し、Flutterで簡単なiPhoneアプリにしています。
+iOSのET対応クライアントアプリは既存のものもありますが、今回はDartで自作してみました。
 
 作ったライブラリはこちらで公開しています。
 https://github.com/kodakamasaru/dart_et
@@ -14,12 +14,11 @@ https://github.com/kodakamasaru/dart_et
 
 ## 経緯
 
-iPhoneからMacに入るとき、普通のSSHだと画面ロックや電波の切り替えのたびに接続が切れてしまい、地味にストレスでした。
-この問題を解決するプロトコルとしてはmoshが有名で、iOSアプリも、Flutter（Dart）向けのライブラリ[dart_mosh](https://pub.dev/packages/dart_mosh)も存在します。
+AI利用に伴い、スマホからMacのターミナルを操作できると便利な場面がしばしばあります。
+そして、そうしたリモート操作アプリがいくつかあることを知り、仕組みを調べるとmoshやETといった自分にとってあまり聞き馴染みのないプロトコルが使われていることが分かりました。
 
-一方で、moshとは違うアプローチで同じ問題を解決する、ETというプロトコルもあります。
-こちらもiOSアプリ（Panicの[Prompt 3](https://panic.com/prompt/)）は対応済みなのですが、Dartのライブラリは見当たりませんでした。
-dart_moshがあるなら参考にしてdart_etを実装できるのではと思い、自作してみました。
+moshについては、Flutter（Dart）向けのライブラリ[dart_mosh](https://pub.dev/packages/dart_mosh)も存在したのですが、
+ETのDartのライブラリは見当たらなかったので、学習も兼ねて自作してみました。
 
 ## ETとは
 
@@ -112,11 +111,9 @@ dependencies:
       url: https://github.com/kodakamasaru/dart_et.git
 ```
 
-今回のiPhoneアプリも、このライブラリを使って作っています（アプリ自体は公開していません。作りは「実装4」で紹介します）。
+今回のiPhoneアプリも、このライブラリを使って作っています。
 
 ## ETの仕組み
-
-ここでは、ETというプロトコル自体の仕組みを説明します（今回の実装に限らず、どの言語で作っても同じ内容です）。
 
 公式サイトには大まかな説明しかなく、プロトコルの仕様書もありません（[要望のIssue](https://github.com/MisterTea/EternalTerminal/issues/452)は立っていますが、そのままになっています）。
 そのため、C++のソースを読んで調べました。
@@ -171,7 +168,7 @@ ETでは、nonceを通信には乗せず、送受信のたびにお互いが1ず
 * `MoshSshBootstrap`→`EtSshBootstrap`、`MoshServerConfig.parse`→`EtCredentials.parse`のように、APIの形を揃える
 * protobufを`protoc`なしで手書きする（dart_moshの`ProtoWriter`/`ProtoReader`を流用し、bool・文字列・負の数を追加）
 
-ただ、moshはUDPで状態を同期、ETはTCPで再送なので、中心の処理はまったくの別物になりました。
+ただ、moshはUDPで状態を同期、ETはTCPで再送なので、中心の処理は別物になりました。
 
 使う側からはこのようなイメージです。
 
@@ -250,12 +247,29 @@ link.add(frameProto(EtCatchupBuffer(local).encode()));
 ## 実装4: iPhoneアプリ
 
 アプリはFlutterで作り、SSHに[dartssh2](https://pub.dev/packages/dartssh2)、画面描画に[xterm](https://pub.dev/packages/xterm)を使っています。
-ETの仕様とは関係なく、アプリとして入れた工夫は以下です。
+自作する場合にハマりやすいところが2つあったので紹介します。
 
-* アプリがフォアグラウンドに戻ったら、すぐに`session.reconnect()`で繋ぎ直す（iOSはバックグラウンドで通信を止めるため、死んだ接続の検知を待たずに張り直す）
-* iOSのキーボードにない`esc` `tab` `ctrl`や矢印キー、ペーストをツールバーで補う
-* 接続先のホスト鍵を初回に確認して保存し、変わっていたら接続しない
-* SSHのパスワードは保存しない
+### LAN内のMacに繋ぐと「No route to host」になる
+
+シミュレータでは繋がるのに、実機だとLAN内のMac（`192.168.x.x`）に繋ぐと`No route to host`になりました。
+原因はiOSの「ローカルネットワーク」の許可で、`Info.plist`に利用目的の文言を書いておかないと、許可ダイアログすら出ずに拒否されるようです。
+
+```xml:Info.plist
+<key>NSLocalNetworkUsageDescription</key>
+<string>同じネットワーク上の Mac に SSH / Eternal Terminal で接続するために使います。</string>
+```
+
+### バックスペースが効かない
+
+iOSのソフトキーボードは、入力欄が空のときにバックスペースを押しても、アプリに何も通知しないようです。
+xtermの`TerminalView`にある`deleteDetection`というオプションを`true`にすることで解決しました（デフォルトは`false`）。
+
+```dart
+TerminalView(
+  terminal,
+  deleteDetection: true,
+)
+```
 
 ## 実機で試してみた
 
@@ -265,15 +279,12 @@ ETの仕様とは関係なく、アプリとして入れた工夫は以下です
 for i in $(seq 1 300); do echo $i; sleep 1; done
 ```
 
-| 操作 | 結果 | etserverのログ |
-|--|--|--|
-| 画面ロック→解除 | 〇 | 再接続 |
-| 機内モード15秒→解除 | 〇 | `Recovering 13 Messages` |
-| Wi-Fiオフ（モバイル通信に切り替え） | 〇 | `Recovering 19 Messages` |
-| モバイル通信で画面ロック約2分半→解除 | 〇 | `Recovering 151 Messages` |
+- 画面ロック→解除
+- 機内モード→解除
+- Wi-Fiオフ（モバイル通信に切り替え）
+- モバイル通信で画面ロック→解除
 
 どれも番号が抜けることなく続きました。
-最後のケースでは、切れていた約2分半の出力151行分が、再接続した瞬間にまとめて流れてきます。
 
 Wi-Fi⇔モバイル通信の切り替えは、Tailscale経由（`100.x.y.z`宛て）で試しています。
 モバイル通信からは家のWi-Fi内のアドレス（`192.168.x.x`）には届かないので、Tailscaleなしだと切り替えた瞬間に繋ぎ先がなくなってしまうためです。
@@ -281,76 +292,24 @@ Wi-Fi⇔モバイル通信の切り替えは、Tailscale経由（`100.x.y.z`宛�
 なお、Tailscaleを使うと、回線が変わってもトンネルの中のIPアドレスは変わらないので、短い切り替えであれば普通のSSHでも耐えることがあります。
 ETが本領を発揮するのは、画面ロックやアプリのバックグラウンド化のように、TCPの接続自体が死んでしまう場面の方だと思います。
 
-## 躓いたポイント
+## おまけ: etserverがまるごと落ちた話
 
-前半の3つはETそのものに由来するもの、後半の3つはMacやiPhoneの環境に由来するものです。
-
-### masterのソースを読んで実装したら、リリース版と話が合わない
-
-最初はGitHubのmasterブランチのソースを読んで実装していたのですが、masterには未リリースの変更がかなり入っていました。
-接続時のチャレンジ認証（鍵を持っていることをBLAKE2bのハッシュで証明する）や、シェル終了時の終了コード通知などがそうで、Homebrewやaptで入る7.0.0には入っていません。
-
-リリースタグ`et-v7.0.0`の`.proto`と見比べて、両方に対応させました。
-サーバがチャレンジを送ってきたら新方式、送ってこなければ旧方式で接続します。
-
-### etserverがまるごと落ちる
-
-終了時に、masterで追加された`TERMINAL_CLOSE`というパケットを送るようにしていたのですが、これを7.0.0のetserverに送ったところ、etserverのプロセスごと落ちてしまいました。
-7.0.0は知らない種類のパケットを受け取ると、ログに`Unknown packet type: 11`を出して強制終了する作りのようです。
+開発中、終了時に`TERMINAL_CLOSE`というパケットを送るようにしていたところ、etserverのプロセスごと落ちてしまいました。
+このパケットはGitHubのmasterブランチで追加された未リリースのもので、Homebrewで入る7.0.0は知らない種類のパケットを受け取ると、ログに`Unknown packet type: 11`を出して強制終了する作りのようです。
 
 1つのクライアントのせいで、同じサーバに繋いでいる全員のセッションが落ちるのはなかなか怖いですね。
 （正しいpasskeyが必要なので、誰でも落とせるわけではありません。masterでは、接続を切るだけの処理に修正されています。）
 
-対策として、`TERMINAL_CLOSE`はチャレンジ認証を使うサーバ（＝7.0.0より新しいサーバ）にだけ送るようにしました。
+dart_etでは、`TERMINAL_CLOSE`は7.0.0より新しいサーバにだけ送るようにしています。
 
-### 長さの表現が2種類ある
+## まとめ
 
-同じTCP接続の中で、メッセージの長さの表し方が2種類混ざっています。
+今回はmoshやETといったプロトコルについて調べ、実際にETクライアントを実装して手持ちのiPhoneからMacのターミナルを操作してみました。
 
-* 接続時のやり取り: 8バイトの整数（リトルエンディアン）＋本体
-* 接続後のパケット: 4バイトの整数（ビッグエンディアン）＋本体
+単純にターミナルを操作したいだけなら既製アプリをインストールするのが手軽ですが、有料のものが多い印象なので、
+無料で使いたい方や色々カスタムしたい方は本記事を参考に自作にチャレンジしてみてはいかがでしょうか。
 
-最初は全部同じ形式だと思い込んでいて、接続直後の応答がまったく読めませんでした。
-どうやら前者はC++のint64をそのままメモリの並びで書き出しているだけのようで、読み分けるようにしたところ読めるようになりました。
-
-### MacのSSH経由だと`etterminal`が見つからない
-
-ターミナルからは普通に`etterminal`が使えるので、最初はなぜ見つからないのかわかりませんでした。
-どうやらMacのsshdがコマンドを実行するときの`PATH`は`/usr/bin:/bin:/usr/sbin:/sbin`だけのようで、Homebrewで入れたコマンドは見えていなかった模様。
-起動コマンドの前に`PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"; export PATH;`を付けて解決しています。
-
-### iPhone実機だけ「No route to host」になる
-
-シミュレータでは繋がるのに、実機だとLAN内のMac（`192.168.x.x`）に繋ぐと`No route to host`になりました。
-原因はiOSの「ローカルネットワーク」の許可で、`Info.plist`に`NSLocalNetworkUsageDescription`（利用目的の文言）を書いておかないと、許可ダイアログすら出ずに拒否されるようです。
-
-```xml:Info.plist
-<key>NSLocalNetworkUsageDescription</key>
-<string>同じネットワーク上の Mac に SSH / Eternal Terminal で接続するために使います。</string>
-```
-
-私の場合は、シミュレータでは`127.0.0.1`に繋いでいたので、実機に入れるまでまったく気づきませんでした。
-
-### iPhoneのキーボードでバックスペースが効かない
-
-iOSのソフトキーボードは、入力欄が空のときにバックスペースを押しても、アプリに何も通知しないようです。
-xterm.dartの`TerminalView`には、これを検出するための`deleteDetection`というオプションがあり、`true`にすることで解決しました。
-
-```dart
-TerminalView(
-  terminal,
-  deleteDetection: true, // デフォルトは false
-)
-```
-
-ドキュメントにも「モバイルでは推奨」と書いてあるので、デフォルトで`true`でもよい気がしますが。。。
-
-## 今後の課題
-
-* ポートフォワードへの対応
-* SSHの公開鍵認証への対応
-* 接続先を複数保存できるように
-* pub.devへの公開
+最後まで読んでいただきありがとうございます。
 
 ## 参考
 
@@ -360,5 +319,3 @@ TerminalView(
 * [dart_mosh](https://pub.dev/packages/dart_mosh)
 * [tphakala/et-go](https://github.com/tphakala/et-go)（Goの移植実装。読みやすく参考になりました）
 * [pinenacl](https://pub.dev/packages/pinenacl) / [dartssh2](https://pub.dev/packages/dartssh2) / [xterm](https://pub.dev/packages/xterm)
-
-最後まで読んでいただきありがとうございます。
