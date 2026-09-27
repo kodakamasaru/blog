@@ -91,47 +91,89 @@ telemetry = false
 `flutter run`でiPhoneにインストールし、接続画面にMacのアドレス・ユーザー名・パスワードを入れて「接続」を押すだけです。
 初回は普通のSSHと同じく、接続先のホスト鍵を信頼するか聞かれるので「信頼する」を押します。
 
-## 接続の流れ
+## ETの仕組み
+
+ここでは、ETというプロトコル自体の仕組みを説明します（今回の実装に限らず、どの言語で作っても同じ内容です）。
 
 公式サイトには大まかな説明しかなく、プロトコルの仕様書もありません（[要望のIssue](https://github.com/MisterTea/EternalTerminal/issues/452)は立っていますが、そのままになっています）。
-そのため、C++のソースを読みながら実装しました。
+そのため、C++のソースを読んで調べました。
 
-接続の流れはこのようになっています。
+### 接続の流れ
 
-1. SSHでMacに入り、`etterminal`を起動する
-2. `etterminal`がセッションIDと鍵（passkey）を発行して標準出力に表示するので、それを受け取ってSSHは切断する
-3. TCP 2022番でetserverに接続し、以降はETだけで通信する
+1. クライアントがSSHでサーバに入り、`etterminal`を起動する
+2. `etterminal`がセッションIDと鍵（passkey）を発行して標準出力に表示するので、クライアントはそれを受け取ってSSHを切断する
+3. クライアントはTCP 2022番で`etserver`に接続し、以降はETだけで通信する
 
 SSHは「鍵を受け取るため」だけに使い、すぐ閉じているのがポイントです。
 認証をSSHに任せているので、ET自体はパスワードや公開鍵の仕組みを持っていません。
 
-## 実装1: SSHで`etterminal`を起動する
-
-実行するコマンドは↓これだけです。
+1.で実行するコマンドは↓これだけです。
 
 ```bash
 echo 'XXXabcdefghijklm/0123456789abcdefghijklmnopqrstuv_xterm-256color' | etterminal --verbose=0
 ```
 
 `ID/passkey_TERM`の形式でランダムな値を渡すと、以下のような行が返ってきます。
+サーバ側で採番し直した値が返ってくるので、こちらを使います。
 
 ```plaintext
 IDPASSKEY:aB3dE5fG7hJ9kL1m/（32文字の英数字）
 ```
 
-サーバ側で採番し直した値が返ってくるので、こちらを使います。
+### 通信の暗号化
 
-## 実装2: 通信の暗号化
-
-etserverに繋いだあとの通信は、libsodiumの`crypto_secretbox`（XSalsa20-Poly1305）で暗号化されています。
+`etserver`に繋いだあとの通信は、libsodiumの`crypto_secretbox`（XSalsa20-Poly1305）で暗号化されています。
 鍵はpasskeyの32文字をそのまま32バイトとして使います。
 
 面白いのがnonceの扱いで、nonceは通信に乗せず、送受信のたびに1ずつ増やすカウンタになっています。
 最上位の1バイトだけ向きで固定されていて、クライアント→サーバは`0`、サーバ→クライアントは`1`です。
 これで同じ鍵でも、両方向でnonceが被らないようになっています。
 
-Dartでは[pinenacl](https://pub.dev/packages/pinenacl)（TweetNaClのpure Dart移植）を使いました。
-↓暗号化と、nonceを進める部分です。
+### 切れても復帰できる仕組み
+
+ここがETの肝です。
+
+1. 送信側は、送った暗号化済みのパケットを一定量（64MB）手元に残しておく
+2. 再接続したら、お互いに「今までに何個受け取ったか」を送り合う
+3. 相手が受け取れていない分を、手元に残しておいたパケットから再送する
+
+再送するのは「一度暗号化したパケットそのもの」なので、nonceのカウンタがずれることもありません。
+よくできているなと思いました。
+
+## 実装1: ライブラリの構成
+
+ここからは、今回作ったDartのライブラリ（dart_et）とiPhoneアプリの話です。
+ライブラリの切り分けはdart_moshに合わせました。
+
+* SSHと画面描画はアプリ側の責務とし、ライブラリは「起動コマンドの生成」「出力のパース」「通信」だけを持つ
+* `MoshSshBootstrap`→`EtSshBootstrap`、`MoshServerConfig.parse`→`EtCredentials.parse`のように、APIの形を揃える
+* protobufを`protoc`なしで手書きする（dart_moshの`ProtoWriter`/`ProtoReader`を流用し、bool・文字列・負の数を追加）
+
+ただ、moshはUDPで状態を同期、ETはTCPで再送なので、中心の処理はまったくの別物になりました。
+
+使う側からはこのようなイメージです。
+
+```dart
+// 1. SSHで etterminal を起動して鍵を受け取る（SSH部分はアプリ側）
+final command = const EtSshBootstrap().command(EtCredentials.random());
+final output = await sshClient.run(command);
+
+// 2. ETで接続
+final session = await EtSession.connect(
+  host: '100.67.19.19',
+  credentials: EtCredentials.parse(utf8.decode(output)),
+);
+
+session.stdout.listen(...);       // 出力
+session.send(utf8.encode('ls\r')); // 入力
+session.resize(80, 24);           // 画面サイズ
+session.reconnect();              // アプリ復帰時などに即再接続
+```
+
+## 実装2: 暗号化
+
+ETの暗号化（libsodiumの`crypto_secretbox`）は、[pinenacl](https://pub.dev/packages/pinenacl)（TweetNaClのpure Dart移植）で実装しました。
+↓暗号化と、nonceのカウンタを進める部分です。
 
 ```dart:et_cipher.dart
 Uint8List encrypt(List<int> plaintext) {
@@ -155,11 +197,9 @@ void _incrementNonce() {
 
 libsodiumと同じ結果になっているかは、PyNaClで作ったテストベクタと突き合わせて確認しています。
 
-## 実装3: 切れても復帰できる仕組み
+## 実装3: 再接続
 
-ここがETの肝です。
-送信側は、暗号化済みのパケットを一定量（64MB）手元に残しておきます。
-再接続したら、お互いに「今までに何個受け取ったか」を送り合い、相手が受け取れていない分を再送します。
+ETの「受け取った数を送り合って、足りない分を再送する」部分です。
 
 ```dart:connection.dart
 // 自分が受け取った数を送る
@@ -177,38 +217,15 @@ final catchup = EtCatchupBuffer.decode(
 link.add(frameProto(EtCatchupBuffer(local).encode()));
 ```
 
-↑で再送しているのは「一度暗号化したパケットそのもの」なので、nonceのカウンタがずれることもありません。
-よくできているなと思いました。
+## 実装4: iPhoneアプリ
 
-## 実装4: dart_moshから参考にしたところ
+アプリはFlutterで作り、SSHに[dartssh2](https://pub.dev/packages/dartssh2)、画面描画に[xterm](https://pub.dev/packages/xterm)を使っています。
+ETの仕様とは関係なく、アプリとして入れた工夫は以下です。
 
-ライブラリの切り分けはdart_moshに合わせました。
-
-* SSHと画面描画はアプリ側の責務とし、ライブラリは「起動コマンドの生成」「出力のパース」「通信」だけを持つ
-* `MoshSshBootstrap`→`EtSshBootstrap`、`MoshServerConfig.parse`→`EtCredentials.parse`のように、APIの形を揃える
-* protobufを`protoc`なしで手書きする（dart_moshの`ProtoWriter`/`ProtoReader`を流用し、bool・文字列・負の数を追加）
-
-ただ、moshはUDPで状態を同期、ETはTCPで再送なので、中心の処理はまったくの別物になりました。
-
-アプリ側は、SSHに[dartssh2](https://pub.dev/packages/dartssh2)、画面描画に[xterm](https://pub.dev/packages/xterm)を使っています。
-使い方はこのようなイメージです。
-
-```dart
-// 1. SSHで etterminal を起動して鍵を受け取る
-final command = const EtSshBootstrap().command(EtCredentials.random());
-final output = await sshClient.run(command);
-
-// 2. ETで接続
-final session = await EtSession.connect(
-  host: '100.67.19.19',
-  credentials: EtCredentials.parse(utf8.decode(output)),
-);
-
-session.stdout.listen(...);       // 出力
-session.send(utf8.encode('ls\r')); // 入力
-session.resize(80, 24);           // 画面サイズ
-session.reconnect();              // アプリ復帰時などに即再接続
-```
+* アプリがフォアグラウンドに戻ったら、すぐに`session.reconnect()`で繋ぎ直す（iOSはバックグラウンドで通信を止めるため、死んだ接続の検知を待たずに張り直す）
+* iOSのキーボードにない`esc` `tab` `ctrl`や矢印キー、ペーストをツールバーで補う
+* 接続先のホスト鍵を初回に確認して保存し、変わっていたら接続しない
+* SSHのパスワードは保存しない
 
 ## 実機で試してみた
 
@@ -235,6 +252,8 @@ Wi-Fi⇔モバイル通信の切り替えは、Tailscale経由（`100.x.y.z`宛�
 ETが本領を発揮するのは、画面ロックやアプリのバックグラウンド化のように、TCPの接続自体が死んでしまう場面の方だと思います。
 
 ## 躓いたポイント
+
+前半の3つはETそのものに由来するもの、後半の3つはMacやiPhoneの環境に由来するものです。
 
 ### masterのソースを読んで実装したら、リリース版と話が合わない
 
