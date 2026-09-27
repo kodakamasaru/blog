@@ -86,14 +86,16 @@ class _ConnectScreenState extends State<ConnectScreen> {
     }
   }
 
-  Future<bool> _askTrust(String fingerprint) async {
+  Future<bool> _askTrust(String keyType, String fingerprint) async {
     final trusted = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('初めて接続するホストです'),
         content: SelectableText(
-          'ホスト鍵のフィンガープリント:\n\n$fingerprint\n\n'
-          'Mac で `ssh-keyscan localhost | ssh-keygen -lf -` を実行して一致するか確認してください。',
+          'ホスト鍵（${_keyLabel(keyType)}）のフィンガープリント:\n\n'
+          '$fingerprint\n\n'
+          'Mac で次を実行し、${_keyLabel(keyType)} の行と一致するか確認してください。\n\n'
+          'ssh-keyscan localhost | ssh-keygen -lf -',
         ),
         actions: [
           TextButton(
@@ -109,6 +111,14 @@ class _ConnectScreenState extends State<ConnectScreen> {
     );
     return trusted ?? false;
   }
+
+  /// `ssh-keygen -l` の表記（ED25519 / ECDSA / RSA）に合わせる。
+  static String _keyLabel(String keyType) => switch (keyType) {
+    'ssh-ed25519' => 'ED25519',
+    'ssh-rsa' || 'rsa-sha2-256' || 'rsa-sha2-512' => 'RSA',
+    _ when keyType.startsWith('ecdsa-') => 'ECDSA',
+    _ => keyType,
+  };
 
   @override
   Widget build(BuildContext context) {

@@ -89,11 +89,23 @@ telemetry = false
 ### アプリ側
 
 `flutter run`でiPhoneにインストールし、接続画面にMacのアドレス・ユーザー名・パスワードを入れて「接続」を押すだけです。
-初回はホスト鍵のフィンガープリントを確認するダイアログが出るので、Macで以下を実行して一致していることを確認してから「信頼する」を押してください。
+初回は、ホスト鍵のフィンガープリントを確認するダイアログが出ます。
+これは「接続先が本当に自分のMacか（途中で別のマシンになりすまされていないか）」を確認するためのもので、ダイアログには鍵の種類と`SHA256:`で始まる文字列が表示されます。
+
+Macで以下を実行すると、Mac自身のホスト鍵のフィンガープリントが鍵の種類ごとに表示されます。
 
 ```bash
 ssh-keyscan localhost | ssh-keygen -lf -
 ```
+
+```plaintext:実行結果の例
+3072 SHA256:ka4yQ9MPhnRpjbpWPqxCFvKtTawWcOXIycaIuIqJfhw localhost (RSA)
+256 SHA256:22Jak+hwPmwMwj/dWQE2hit7OmdPbpK8xOo+DNxfjyg localhost (ECDSA)
+256 SHA256:J8O9FO8ZuuP1Rp3CJsyI8zb6Eo9LzKeY3T6nlTSawME localhost (ED25519)
+```
+
+↑のうち、ダイアログに表示された鍵の種類（ED25519など）の行を見て、`SHA256:`以降の文字列がダイアログと同じであれば「信頼する」を押してください。
+一度信頼すると保存されるので、次回からは確認なしで繋がります。
 
 ## 接続の流れ
 

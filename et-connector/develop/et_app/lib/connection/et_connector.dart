@@ -8,7 +8,10 @@ import 'connection_profile.dart';
 import 'host_key_store.dart';
 
 /// Asks the user whether to trust an unknown host key.
-typedef TrustPrompt = Future<bool> Function(String fingerprint);
+///
+/// [keyType] is the SSH name such as `ssh-ed25519`; [fingerprint] is the
+/// OpenSSH-style `SHA256:...` string.
+typedef TrustPrompt = Future<bool> Function(String keyType, String fingerprint);
 
 /// Thrown when the host key differs from the one trusted before.
 class HostKeyChangedException implements Exception {
@@ -64,8 +67,12 @@ class EtConnector {
       socket,
       username: profile.user,
       onPasswordRequest: () => password,
-      onVerifyHostKey: (type, fingerprintBytes) =>
-          _verifyHostKey(profile, utf8.decode(fingerprintBytes), trustPrompt),
+      onVerifyHostKey: (type, fingerprintBytes) => _verifyHostKey(
+        profile,
+        type,
+        utf8.decode(fingerprintBytes),
+        trustPrompt,
+      ),
     );
     try {
       final command = const EtSshBootstrap().command(EtCredentials.random());
@@ -78,6 +85,7 @@ class EtConnector {
 
   Future<bool> _verifyHostKey(
     ConnectionProfile profile,
+    String keyType,
     String fingerprint,
     TrustPrompt trustPrompt,
   ) async {
@@ -86,7 +94,7 @@ class EtConnector {
       if (known == fingerprint) return true;
       throw HostKeyChangedException(known, fingerprint);
     }
-    if (!await trustPrompt(fingerprint)) return false;
+    if (!await trustPrompt(keyType, fingerprint)) return false;
     await _hostKeys.remember(profile.host, profile.sshPort, fingerprint);
     return true;
   }
