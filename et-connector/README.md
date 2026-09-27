@@ -101,7 +101,7 @@ dart pub get
 dart run example/et_cli.dart ユーザー名@MacのIPアドレス
 ```
 
-※CLIのサンプルは、`etterminal`の起動にPCの`ssh`コマンドを使います。パスワードの入力には対応していないので、SSHの公開鍵認証を設定しておく必要があります。
+※CLIのサンプルは、`etterminal`の起動にPCの`ssh`コマンドを使います。事前に`ssh ユーザー名@MacのIPアドレス`で普通にログインできることを確認しておいてください。
 
 自分のアプリに組み込む場合は、`pubspec.yaml`にGitのURLで追加します（pub.devには公開していません）。
 
