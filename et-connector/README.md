@@ -122,12 +122,12 @@ IDPASSKEY:aB3dE5fG7hJ9kL1m/（32文字の英数字）
 
 ### 通信の暗号化
 
-`etserver`に繋いだあとの通信は、libsodiumの`crypto_secretbox`（XSalsa20-Poly1305）で暗号化されています。
-鍵はpasskeyの32文字をそのまま32バイトとして使います。
+`etserver`に繋いだあとの通信は、すべて暗号化されています。
+暗号化には、libsodiumという定番の暗号ライブラリの機能（`crypto_secretbox`）が使われていて、鍵はpasskeyの32文字をそのまま使います。
 
-nonceは通信に乗せず、送受信のたびに1ずつ増やすカウンタになっています。
-最上位の1バイトだけ向きで固定されていて、クライアント→サーバは`0`、サーバ→クライアントは`1`です。
-これで同じ鍵でも、両方向でnonceが被らないようになっています。
+この方式では、鍵のほかに「nonce」という、暗号化のたびに毎回違う値にしなければいけない番号が必要です。
+ETでは、nonceを通信には乗せず、送受信のたびにお互いが1ずつ数え上げる仕組みになっています。
+さらに、番号の一部を「クライアント→サーバは`0`、サーバ→クライアントは`1`」と向きごとに固定しているので、同じ鍵を使っていても、行きと帰りで番号が被らないようになっています。
 
 ### 切れても復帰できる仕組み
 
@@ -170,30 +170,27 @@ session.reconnect();              // アプリ復帰時などに即再接続
 
 ## 実装2: 暗号化
 
-ETの暗号化（libsodiumの`crypto_secretbox`）は、[pinenacl](https://pub.dev/packages/pinenacl)（TweetNaClのpure Dart移植）で実装しました。
-↓暗号化と、nonceのカウンタを進める部分です。
+やりたいことは、「`etserver`と同じ方式で暗号化・復号できること」です。
+暗号化の処理そのものを自分で書くのは危ないので、libsodiumと同じ方式をDartだけで実装した[pinenacl](https://pub.dev/packages/pinenacl)というライブラリを使いました。
+
+自分で書いたのは、ETならではの「nonceを1ずつ数え上げる」部分くらいです。
 
 ```dart:et_cipher.dart
 Uint8List encrypt(List<int> plaintext) {
-  _incrementNonce();
-  final padded = Uint8List(TweetNaCl.zerobytesLength + plaintext.length)
-    ..setRange(TweetNaCl.zerobytesLength,
-        TweetNaCl.zerobytesLength + plaintext.length, plaintext);
-  final out = Uint8List(padded.length);
-  // 戻り値は MAC(16バイト) + 暗号文。libsodium の crypto_secretbox_easy と同じ並び
-  return TweetNaCl.crypto_secretbox(out, padded, padded.length, _nonce, _key);
+  _incrementNonce(); // 暗号化する前に、番号を1つ進める
+  // （中略）pinenaclで暗号化して返す
 }
 
 void _incrementNonce() {
-  // 24バイトのリトルエンディアンのカウンタとして +1 する
+  // 24バイトの番号を、先頭のバイトから繰り上がりつきで +1 する
   for (var i = 0; i < etNonceLength; i++) {
     _nonce[i] = (_nonce[i] + 1) & 0xff;
-    if (_nonce[i] != 0) break;
+    if (_nonce[i] != 0) break; // 繰り上がりがなければ終了
   }
 }
 ```
 
-libsodiumと同じ結果になっているかは、PyNaClで作ったテストベクタと突き合わせて確認しています。
+本当に`etserver`側と同じ結果になっているかは、本家と同じlibsodiumで暗号化した結果を事前に用意しておき、Dart版で同じ入力を暗号化したときに1バイトも違わないことをテストで確認しています。
 
 ## 実装3: 再接続
 
