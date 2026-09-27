@@ -171,14 +171,19 @@ session.reconnect();              // アプリ復帰時などに即再接続
 ## 実装2: 暗号化
 
 やりたいことは、「`etserver`と同じ方式で暗号化・復号できること」です。
-暗号化の処理そのものを自分で書くのは危ないので、libsodiumと同じ方式をDartだけで実装した[pinenacl](https://pub.dev/packages/pinenacl)というライブラリを使いました。
+`etserver`側の暗号化ライブラリ(libsodium)と同じ方式のDartライブラリ[pinenacl](https://pub.dev/packages/pinenacl)を使いました。
 
-自分で書いたのは、ETならではの「nonceを1ずつ数え上げる」部分くらいです。
+↓nonceを1ずつ数え上げる部分だけは、ETに合わせて自分で書いています。
 
 ```dart:et_cipher.dart
 Uint8List encrypt(List<int> plaintext) {
   _incrementNonce(); // 暗号化する前に、番号を1つ進める
-  // （中略）pinenaclで暗号化して返す
+
+  // pinenaclの関数は、先頭に32バイトの0を付けたデータを受け取る決まりなので、付けてから渡す
+  final padded = Uint8List(TweetNaCl.zerobytesLength + plaintext.length);
+  padded.setRange(TweetNaCl.zerobytesLength, padded.length, plaintext);
+  return TweetNaCl.crypto_secretbox(
+      Uint8List(padded.length), padded, padded.length, _nonce, _key);
 }
 
 void _incrementNonce() {
@@ -189,8 +194,6 @@ void _incrementNonce() {
   }
 }
 ```
-
-本当に`etserver`側と同じ結果になっているかは、本家と同じlibsodiumで暗号化した結果を事前に用意しておき、Dart版で同じ入力を暗号化したときに1バイトも違わないことをテストで確認しています。
 
 ## 実装3: 再接続
 
