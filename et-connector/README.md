@@ -1,0 +1,302 @@
+# iPhoneからMacにEternal Terminalで接続してみた（DartでETクライアントを自作）
+
+## 概要
+
+iPhoneからMacへ、SSHではなくEternal Terminal（以下ET）というプロトコルで接続してみました。
+iOSのET対応クライアントは既存のものもありますが、今回はDartでETクライアントのライブラリを自作し、Flutterで簡単なiPhoneアプリにしています。
+
+画面ロックや機内モード、Wi-Fi⇔モバイル通信の切り替えを挟んでも、セッションが切れずに、途切れていた間の出力も欠けずに復帰するところまで確認できました。
+
+動作環境: iPhone SE（第3世代）iOS 26.6 / macOS 26.7（Intel） / etserver 7.0.0 / Flutter 3.47.5 / Dart 3.13
+
+## 経緯
+
+iPhoneからMacに入るとき、普通のSSHだと画面ロックや電波の切り替えのたびに接続が切れてしまい、地味にストレスでした。
+この問題を解決するプロトコルとしてはmoshが有名で、iOSアプリも、Flutter（Dart）向けのライブラリ[dart_mosh](https://pub.dev/packages/dart_mosh)も存在します。
+
+一方で、moshとは違うアプローチで同じ問題を解決する、ETというプロトコルもあります。
+こちらもiOSアプリ（Panicの[Prompt 3](https://panic.com/prompt/)）は対応済みなのですが、Dartのライブラリは見当たりませんでした。
+dart_moshがあるならdart_etもあってよいのでは、と思い、自作してみました。
+
+## ETとは
+
+ETは「自動で再接続してくれるリモートシェル」です。
+moshとの違いをざっくり表にするとこのようになります。
+
+| | mosh | ET |
+|--|--|--|
+| 通信 | UDP | TCP |
+| 仕組み | 画面の状態を同期 | バイト列を順番通りに届けて、切れたら再送 |
+| スクロールバック | × | 〇 |
+| ローカルエコー予測（打った文字を即表示） | 〇 | × |
+| tmuxの`-CC`モード | × | 〇 |
+
+moshは「画面の状態」を同期するので、途中の出力は飛ばされることがあり、スクロールして遡ることができません。
+ETは送ったバイト列を全部覚えておき、再接続したときに相手が受け取れていない分を再送するので、途中の出力も全部届きます。
+
+逆に、回線が遅いときの打鍵の快適さはmoshの方が上です。
+どちらが良いというより、得意分野が違うという印象です。
+
+## 完成品紹介
+
+接続画面です。
+ホストとユーザー名、SSHのパスワードを入れて接続します。パスワードは保存しません。
+
+<img alt="" src="img/connect.png" width="300">
+
+接続すると、このようにターミナルが開きます。
+右上に接続状態が表示され、回線が切れている間は「再接続中…」になります。
+iOSのキーボードにない`esc` `tab` `ctrl`や矢印キー、ペーストは下のツールバーで補っています。
+
+<img alt="" src="img/terminal.png" width="300">
+
+※スクリーンショットはシミュレータのものです
+
+## 使い方
+
+### Mac側の準備
+
+1. Homebrewでetをインストールし、etserverを起動します
+
+```bash
+brew install et
+brew services start et
+```
+
+2. 「システム設定→一般→共有→リモートログイン」をオンにします（SSH用）
+
+※インストール時のメッセージには`sudo brew services start et`と出ますが、`sudo`なしでも動きました。
+その場合は「Macの起動時」ではなく「ログイン時」に起動するという警告が出ますが、個人のMacであれば困ることはないと思います。
+
+etserverはTCPの2022番ポートで待ち受けます。
+外出先から繋ぐ場合は、Tailscaleなどを入れてMacに届くようにしておきます。
+
+※`/usr/local/etc/et.cfg`（Apple Siliconの場合は`/opt/homebrew/etc/et.cfg`）の`telemetry`はデフォルトで`true`になっているので、気になる方は`false`にしておくとよいと思います。
+
+### アプリ側
+
+`flutter run`でiPhoneにインストールし、接続画面にMacのアドレス・ユーザー名・パスワードを入れて「接続」を押すだけです。
+初回はホスト鍵のフィンガープリントを確認するダイアログが出るので、Macで以下を実行して一致していることを確認してから「信頼する」を押してください。
+
+```bash
+ssh-keyscan localhost | ssh-keygen -lf -
+```
+
+## ETの仕組み
+
+公式サイトには大まかな説明しかなく、プロトコルの仕様書もありません（[要望のIssue](https://github.com/MisterTea/EternalTerminal/issues/452)は立っていますが、そのままになっています）。
+そのため、C++のソースを読みながら実装しました。
+
+接続の流れはこのようになっています。
+
+1. SSHでMacに入り、`etterminal`を起動する
+2. `etterminal`がセッションIDと鍵（passkey）を発行して標準出力に表示するので、それを受け取ってSSHは切断する
+3. TCP 2022番でetserverに接続し、以降はETだけで通信する
+
+SSHは「鍵を受け取るため」だけに使い、すぐ閉じているのがポイントです。
+認証をSSHに任せているので、ET自体はパスワードや公開鍵の仕組みを持っていません。
+
+### 1. SSHで`etterminal`を起動する
+
+実行するコマンドはこれだけです。
+
+```bash
+echo 'XXXabcdefghijklm/0123456789abcdefghijklmnopqrstuv_xterm-256color' | etterminal --verbose=0
+```
+
+`ID/passkey_TERM`の形式でランダムな値を渡すと、以下のような行が返ってきます。
+
+```plaintext
+IDPASSKEY:aB3dE5fG7hJ9kL1m/（32文字の英数字）
+```
+
+サーバ側で採番し直した値が返ってくるので、こちらを使います。
+
+### 2. 通信の暗号化
+
+etserverに繋いだあとの通信は、libsodiumの`crypto_secretbox`（XSalsa20-Poly1305）で暗号化されています。
+鍵はpasskeyの32文字をそのまま32バイトとして使います。
+
+面白いのがnonceの扱いで、nonceは通信に乗せず、送受信のたびに1ずつ増やすカウンタになっています。
+最上位の1バイトだけ向きで固定されていて、クライアント→サーバは`0`、サーバ→クライアントは`1`です。
+これで同じ鍵でも、両方向でnonceが被らないようになっています。
+
+Dartでは[pinenacl](https://pub.dev/packages/pinenacl)（TweetNaClのpure Dart移植）を使いました。
+
+```dart:et_cipher.dart
+Uint8List encrypt(List<int> plaintext) {
+  _incrementNonce();
+  final padded = Uint8List(TweetNaCl.zerobytesLength + plaintext.length)
+    ..setRange(TweetNaCl.zerobytesLength,
+        TweetNaCl.zerobytesLength + plaintext.length, plaintext);
+  final out = Uint8List(padded.length);
+  // 戻り値は MAC(16バイト) + 暗号文。libsodium の crypto_secretbox_easy と同じ並び
+  return TweetNaCl.crypto_secretbox(out, padded, padded.length, _nonce, _key);
+}
+
+void _incrementNonce() {
+  // 24バイトのリトルエンディアンのカウンタとして +1 する
+  for (var i = 0; i < etNonceLength; i++) {
+    _nonce[i] = (_nonce[i] + 1) & 0xff;
+    if (_nonce[i] != 0) break;
+  }
+}
+```
+
+libsodiumと同じ結果になっているかは、PyNaClで作ったテストベクタと突き合わせて確認しています。
+
+### 3. 切れても復帰できる仕組み
+
+ここがETの肝です。
+送信側は、暗号化済みのパケットを一定量（64MB）手元に残しておきます。
+再接続したら、お互いに「今までに何個受け取ったか」を送り合い、相手が受け取れていない分を再送します。
+
+```dart:connection.dart
+// 自分が受け取った数を送る
+link.add(frameProto(
+  EtSequenceHeader(sequenceNumber: _reader.sequenceNumber).encode(),
+));
+// 相手が受け取った数を受け取る
+final remote = EtSequenceHeader.decode(await readProto(queue));
+// 相手が持っていない分を手元のバックアップから取り出す
+final local = _writer.recover(remote.sequenceNumber);
+// 相手の再送分を受け取ってから、自分の再送分を送る
+final catchup = EtCatchupBuffer.decode(
+  await readProto(queue, maxLength: etMaxMessageLength),
+);
+link.add(frameProto(EtCatchupBuffer(local).encode()));
+```
+
+再送するのは「一度暗号化したパケットそのもの」なので、nonceのカウンタがずれることもありません。
+よくできているなと思いました。
+
+### 4. dart_moshから参考にしたところ
+
+ライブラリの切り分けはdart_moshに合わせました。
+
+* SSHと画面描画はアプリ側の責務とし、ライブラリは「起動コマンドの生成」「出力のパース」「通信」だけを持つ
+* `MoshSshBootstrap`→`EtSshBootstrap`、`MoshServerConfig.parse`→`EtCredentials.parse`のように、APIの形を揃える
+* protobufを`protoc`なしで手書きする（dart_moshの`ProtoWriter`/`ProtoReader`を流用し、bool・文字列・負の数を追加）
+
+ただ、moshはUDPで状態を同期、ETはTCPで再送なので、中心の処理はまったくの別物になりました。
+
+アプリ側は、SSHに[dartssh2](https://pub.dev/packages/dartssh2)、画面描画に[xterm](https://pub.dev/packages/xterm)を使っています。
+使い方はこのようなイメージです。
+
+```dart
+// 1. SSHで etterminal を起動して鍵を受け取る
+final command = const EtSshBootstrap().command(EtCredentials.random());
+final output = await sshClient.run(command);
+
+// 2. ETで接続
+final session = await EtSession.connect(
+  host: '100.67.19.19',
+  credentials: EtCredentials.parse(utf8.decode(output)),
+);
+
+session.stdout.listen(...);       // 出力
+session.send(utf8.encode('ls\r')); // 入力
+session.resize(80, 24);           // 画面サイズ
+session.reconnect();              // アプリ復帰時などに即再接続
+```
+
+## 実機で試してみた
+
+1秒ごとに番号を出力するループを流しながら、いろいろな方法で回線を切ってみました。
+
+```bash
+for i in $(seq 1 300); do echo $i; sleep 1; done
+```
+
+| 操作 | 結果 | etserverのログ |
+|--|--|--|
+| 画面ロック→解除 | 〇 | 再接続 |
+| 機内モード15秒→解除 | 〇 | `Recovering 13 Messages` |
+| Wi-Fiオフ（モバイル通信に切り替え） | 〇 | `Recovering 19 Messages` |
+| モバイル通信で画面ロック約2分半→解除 | 〇 | `Recovering 151 Messages` |
+
+どれも番号が抜けることなく続きました。
+最後のケースでは、切れていた約2分半の出力151行分が、再接続した瞬間にまとめて流れてきます。
+
+Wi-Fi⇔モバイル通信の切り替えは、Tailscale経由（`100.x.y.z`宛て）で試しています。
+Tailscaleを使うと、回線が変わってもトンネルの中のIPアドレスは変わらないので、短い切り替えであれば普通のSSHでも耐えることがあります。
+ETが本領を発揮するのは、画面ロックやアプリのバックグラウンド化のように、TCPの接続自体が死んでしまう場面の方だと思います。
+
+## 躓いたポイント
+
+### masterのソースを読んで実装したら、リリース版と話が合わない
+
+最初はGitHubのmasterブランチのソースを読んで実装していたのですが、masterには未リリースの変更がかなり入っていました。
+接続時のチャレンジ認証（鍵を持っていることをBLAKE2bのハッシュで証明する）や、シェル終了時の終了コード通知などがそうで、Homebrewやaptで入る7.0.0には入っていません。
+
+リリースタグ`et-v7.0.0`の`.proto`と見比べて、両方に対応させました。
+サーバがチャレンジを送ってきたら新方式、送ってこなければ旧方式で接続します。
+
+### etserverがまるごと落ちる
+
+終了時に、masterで追加された`TERMINAL_CLOSE`というパケットを送るようにしていたのですが、これを7.0.0のetserverに送ったところ、etserverのプロセスごと落ちてしまいました。
+7.0.0は知らない種類のパケットを受け取ると、ログに`Unknown packet type: 11`を出して強制終了する作りのようです。
+
+1つのクライアントのせいで、同じサーバに繋いでいる全員のセッションが落ちるのはなかなか怖いですね。
+（正しいpasskeyが必要なので、誰でも落とせるわけではありません。masterでは、接続を切るだけの処理に修正されています。）
+
+対策として、`TERMINAL_CLOSE`はチャレンジ認証を使うサーバ（＝7.0.0より新しいサーバ）にだけ送るようにしました。
+
+### 長さの表現が2種類ある
+
+同じTCP接続の中で、メッセージの長さの表し方が2種類混ざっています。
+
+* 接続時のやり取り: 8バイトの整数（リトルエンディアン）＋本体
+* 接続後のパケット: 4バイトの整数（ビッグエンディアン）＋本体
+
+前者はC++のint64をそのままメモリの並びで書き出しているだけのようです。
+これに気づくまで、接続直後の応答がうまく読めませんでした。
+
+### MacのSSH経由だと`etterminal`が見つからない
+
+Macのsshdがコマンドを実行するときの`PATH`は`/usr/bin:/bin:/usr/sbin:/sbin`だけのようで、Homebrewで入れた`etterminal`が見つかりませんでした。
+起動コマンドの前に`PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"; export PATH;`を付けて解決しています。
+
+### iPhone実機だけ「No route to host」になる
+
+シミュレータでは繋がるのに、実機だとLAN内のMac（`192.168.x.x`）に繋ぐと`No route to host`になりました。
+原因はiOSの「ローカルネットワーク」の許可で、`Info.plist`に`NSLocalNetworkUsageDescription`（利用目的の文言）を書いておかないと、許可ダイアログすら出ずに拒否されるようです。
+
+```xml:Info.plist
+<key>NSLocalNetworkUsageDescription</key>
+<string>同じネットワーク上の Mac に SSH / Eternal Terminal で接続するために使います。</string>
+```
+
+シミュレータでは`127.0.0.1`に繋いでいたので、実機で初めて気づきました。
+
+### iPhoneのキーボードでバックスペースが効かない
+
+iOSのソフトキーボードは、入力欄が空のときにバックスペースを押しても、アプリに何も通知しないようです。
+xterm.dartの`TerminalView`には、これを検出するための`deleteDetection`というオプションがあり、`true`にすることで解決しました。
+
+```dart
+TerminalView(
+  terminal,
+  deleteDetection: true, // デフォルトは false
+)
+```
+
+ドキュメントにも「モバイルでは推奨」と書いてあるので、デフォルトで`true`でもよい気がしますが。。。
+
+## 今後の課題
+
+* ポートフォワードへの対応
+* SSHの公開鍵認証への対応
+* 接続先を複数保存できるように
+* ライブラリの公開
+
+## 参考
+
+* [Eternal Terminal](https://eternalterminal.dev/)
+* [How Eternal Terminal Works](https://eternalterminal.dev/howitworks/)
+* [MisterTea/EternalTerminal](https://github.com/MisterTea/EternalTerminal)
+* [dart_mosh](https://pub.dev/packages/dart_mosh)
+* [tphakala/et-go](https://github.com/tphakala/et-go)（Goの移植実装。読みやすく参考になりました）
+* [pinenacl](https://pub.dev/packages/pinenacl) / [dartssh2](https://pub.dev/packages/dartssh2) / [xterm](https://pub.dev/packages/xterm)
+
+最後まで読んでいただきありがとうございます。

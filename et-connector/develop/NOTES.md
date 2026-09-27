@@ -103,3 +103,8 @@
 - モバイル通信のまま画面ロック約 2 分半 → 復帰: `Recovering 151 Messages`（カウンタ 151 行分を一括再送）
 - 注意（記事で書き分ける）: Tailscale は内側の IP が変わらないので、短い切替なら素の SSH でも耐えることがある。
   ET の強みは TCP 自体が死ぬ長時間断・スリープ・バックグラウンド化からの無欠落復帰
+
+### etserver の常駐
+- `brew services start et`（sudo なし）で `~/Library/LaunchAgents/sh.brew.et.plist` として常駐。「root でないとシステム起動時には起動しない」警告のみ
+- `/usr/local/etc/et.cfg` の `telemetry` を false に（元ファイルは `et.cfg.orig`）
+- 常駐 etserver に対しても接続・リサイズ・強制再接続を確認
