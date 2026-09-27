@@ -5,6 +5,9 @@
 iPhoneからMacへ、SSHではなくEternal Terminal（以下ET）というプロトコルで接続してみました。
 iOSのET対応クライアントは既存のものもありますが、今回はDartでETクライアントのライブラリを自作し、Flutterで簡単なiPhoneアプリにしています。
 
+作ったライブラリはこちらで公開しています。
+https://github.com/kodakamasaru/dart_et
+
 画面ロックや機内モード、Wi-Fi⇔モバイル通信の切り替えを挟んでも、セッションが切れずに、途切れていた間の出力も欠けずに復帰するところまで確認できました。
 
 動作環境: iPhone SE（第3世代）iOS 26.6 / macOS 26.7（Intel） / etserver 7.0.0 / Flutter 3.47.5 / Dart 3.13
@@ -86,10 +89,30 @@ telemetry = false
 
 ※Apple Siliconの場合は`/opt/homebrew/etc/et.cfg`です。変更後は`brew services restart et`で反映されます。
 
-### アプリ側
+### クライアント側
 
-`flutter run`でiPhoneにインストールし、接続画面にMacのアドレス・ユーザー名・パスワードを入れて「接続」を押すだけです。
-初回は普通のSSHと同じく、接続先のホスト鍵を信頼するか聞かれるので「信頼する」を押します。
+まずは、ライブラリに付属しているCLIのサンプルで、ETで繋がることを確認できます。
+[Dart SDK](https://dart.dev/get-dart)が入っている環境で、以下を実行します。
+
+```bash
+git clone https://github.com/kodakamasaru/dart_et.git
+cd dart_et
+dart pub get
+dart run example/et_cli.dart ユーザー名@MacのIPアドレス
+```
+
+※CLIのサンプルは、`etterminal`の起動にPCの`ssh`コマンドを使います。パスワードの入力には対応していないので、SSHの公開鍵認証を設定しておく必要があります。
+
+自分のアプリに組み込む場合は、`pubspec.yaml`にGitのURLで追加します（pub.devには公開していません）。
+
+```yaml:pubspec.yaml
+dependencies:
+  dart_et:
+    git:
+      url: https://github.com/kodakamasaru/dart_et.git
+```
+
+今回のiPhoneアプリも、このライブラリを使って作っています（アプリ自体は公開していません。作りは「実装4」で紹介します）。
 
 ## ETの仕組み
 
@@ -141,6 +164,7 @@ ETでは、nonceを通信には乗せず、送受信のたびにお互いが1ず
 
 ## 実装1: ライブラリの構成
 
+コードの全体は[kodakamasaru/dart_et](https://github.com/kodakamasaru/dart_et)にあります。ここでは要点だけ抜粋して紹介します。
 ライブラリの切り分けはdart_moshに合わせました。
 
 * SSHと画面描画はアプリ側の責務とし、ライブラリは「起動コマンドの生成」「出力のパース」「通信」だけを持つ
@@ -198,6 +222,14 @@ void _incrementNonce() {
 ## 実装3: 再接続
 
 ETの「受け取った数を送り合って、足りない分を再送する」部分です。
+出てくる名前は、それぞれ以下のものです。
+
+* `_reader` / `_writer`: 受信側・送信側の管理。受け取った数と、送ったパケットの控えを持っている
+* `EtSequenceHeader`: 「今までに何個受け取ったか」を入れて送るメッセージ
+* `EtCatchupBuffer`: 再送するパケットをまとめて送るメッセージ
+* `frameProto` / `readProto`: メッセージに長さを付けて送る・受け取る処理
+
+↓は、エラー処理などを省いた抜粋です（全体は`lib/src/transport/connection.dart`）。
 
 ```dart:connection.dart
 // 自分が受け取った数を送る
@@ -318,7 +350,7 @@ TerminalView(
 * ポートフォワードへの対応
 * SSHの公開鍵認証への対応
 * 接続先を複数保存できるように
-* ライブラリの公開
+* pub.devへの公開
 
 ## 参考
 
