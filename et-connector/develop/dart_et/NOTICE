@@ -1,0 +1,9 @@
+dart_et
+
+lib/src/protocol/protobuf.dart is adapted from dart_mosh
+(https://github.com/gwitko/dart_mosh), Copyright the dart_mosh authors,
+licensed under the Apache License, Version 2.0.
+
+The protocol implementation follows Eternal Terminal
+(https://github.com/MisterTea/EternalTerminal), licensed under the
+Apache License, Version 2.0.

@@ -1,0 +1,15 @@
+name: dart_et
+description: "Pure Dart client building blocks for the Eternal Terminal (ET) protocol."
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  pinenacl: ^0.6.0
+
+dev_dependencies:
+  coverage: ^1.15.1
+  lints: ^5.0.0
+  test: ^1.25.0
