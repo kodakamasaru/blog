@@ -1,0 +1,166 @@
+{
+  "$comment": "網羅率を測るための公開サンプル。コードはこのリポジトリに含めず、scripts/samples.mjs が ref を固定して .work/ に取得する。stacks は先頭から順に処理し、apply: true のスタックは moto に apply してから次へ進む（後続スタックのデータソース検索のため）。 include は追加で取得するディレクトリ（ローカルモジュール）。providerVersion はサンプルの AWS プロバイダ指定が古く moto や新しいランタイムに対応しない場合に、override ファイルで上書きするバージョン。 vars はスタックに渡す変数（別スタックの出力を手で渡す作りのサンプル用のダミー値）。seed は plan の前に moto へ投入するデータ（boto3 の呼び出し）。 override はスタックの override ファイルに足す HCL（moto に無いデータの参照先を差し替える用途。サンプルのコードは書き換えない）。",
+  "samples": [
+    {
+      "id": "photo-share",
+      "title": "このリポジトリのサンプル（画像投稿サービス）",
+      "local": "infra",
+      "stacks": [
+        {
+          "dir": "."
+        }
+      ]
+    },
+    {
+      "id": "ecs-fargate",
+      "title": "terraform-aws-modules/ecs examples/fargate",
+      "repo": "https://github.com/terraform-aws-modules/terraform-aws-ecs.git",
+      "ref": "v7.6.1",
+      "stacks": [
+        {
+          "dir": "examples/fargate",
+          "override": "data \"aws_ssm_parameter\" \"fluentbit\" {\n  name = \"/tfscope/aws-for-fluent-bit/stable\"\n}\n"
+        }
+      ],
+      "include": [
+        "modules"
+      ],
+      "seed": [
+        {
+          "service": "ssm",
+          "method": "put_parameter",
+          "params": {
+            "Name": "/tfscope/aws-for-fluent-bit/stable",
+            "Value": "public.ecr.aws/aws-observability/aws-for-fluent-bit:stable",
+            "Type": "String"
+          },
+          "region": "eu-west-1"
+        }
+      ]
+    },
+    {
+      "id": "vpc-complete",
+      "title": "terraform-aws-modules/vpc examples/complete",
+      "repo": "https://github.com/terraform-aws-modules/terraform-aws-vpc.git",
+      "ref": "v6.7.3",
+      "stacks": [
+        {
+          "dir": "examples/complete"
+        }
+      ],
+      "include": [
+        "modules"
+      ]
+    },
+    {
+      "id": "apigw-lambda-ddb",
+      "title": "serverless-patterns apigw-lambda-dynamodb-terraform",
+      "repo": "https://github.com/aws-samples/serverless-patterns.git",
+      "ref": "7dccfa6bba059853001976f12cc2c08ffb25954a",
+      "stacks": [
+        {
+          "dir": "apigw-lambda-dynamodb-terraform"
+        }
+      ],
+      "providerVersion": "~> 6.0"
+    },
+    {
+      "id": "apigw-lambda-rds-proxy",
+      "title": "serverless-patterns apigw-http-api-lambda-rds-proxy-terraform",
+      "repo": "https://github.com/aws-samples/serverless-patterns.git",
+      "ref": "7dccfa6bba059853001976f12cc2c08ffb25954a",
+      "stacks": [
+        {
+          "dir": "apigw-http-api-lambda-rds-proxy-terraform/vpc-rds-setup"
+        },
+        {
+          "dir": "apigw-http-api-lambda-rds-proxy-terraform",
+          "vars": {
+            "rds_proxy_resourceid": "prx-0123456789abcdef0",
+            "vpc_id": "vpc-0123456789abcdef0",
+            "vpc_subnets": "[\"subnet-0123456789abcdef0\",\"subnet-0123456789abcdef1\"]",
+            "security_group": "sg-0123456789abcdef0",
+            "rds_proxy_endpoint": "proxy.proxy-example.us-east-1.rds.amazonaws.com",
+            "secret_name": "rds-proxy-secret"
+          }
+        }
+      ],
+      "providerVersion": "~> 6.0",
+      "seed": [
+        {
+          "service": "secretsmanager",
+          "method": "create_secret",
+          "params": {
+            "Name": "rds-proxy-secret",
+            "SecretString": "{\"username\":\"admin\",\"password\":\"dummy-password-for-moto\"}"
+          }
+        }
+      ]
+    },
+    {
+      "id": "eventbridge-sns-lambda",
+      "title": "serverless-patterns eventbridge-sns-lambda-terraform",
+      "repo": "https://github.com/aws-samples/serverless-patterns.git",
+      "ref": "7dccfa6bba059853001976f12cc2c08ffb25954a",
+      "stacks": [
+        {
+          "dir": "eventbridge-sns-lambda-terraform"
+        }
+      ],
+      "providerVersion": "~> 6.0"
+    },
+    {
+      "id": "ecs-blueprints-queue",
+      "title": "aws-ia/ecs-blueprints core-infra + queue-processing",
+      "repo": "https://github.com/aws-ia/ecs-blueprints.git",
+      "ref": "99763badbb18f4f1ec5df3d14efbb2a578b2d989",
+      "stacks": [
+        {
+          "dir": "terraform/fargate-examples/core-infra",
+          "apply": true
+        },
+        {
+          "dir": "terraform/fargate-examples/queue-processing",
+          "vars": {
+            "repository_owner": "example-org"
+          }
+        }
+      ],
+      "include": [
+        "terraform/modules",
+        "application-code/lambda-function-queue-trigger"
+      ],
+      "seed": [
+        {
+          "service": "secretsmanager",
+          "method": "create_secret",
+          "region": "us-west-2",
+          "params": {
+            "Name": "ecs-github-token",
+            "SecretString": "ghp_dummyTokenForMotoOnly0000000000"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ecs-fullstack",
+      "title": "aws-samples/amazon-ecs-fullstack-app-terraform（自作モジュール 34 回呼び出し、CI/CD 込み）",
+      "repo": "https://github.com/aws-samples/amazon-ecs-fullstack-app-terraform.git",
+      "ref": "98ee8e693a5ebc4b14f3dfe731bdc786637c1eb4",
+      "stacks": [
+        {
+          "dir": "Infrastructure",
+          "vars": {
+            "aws_profile": "default",
+            "aws_region": "us-east-1",
+            "environment_name": "demo",
+            "github_token": "ghp_fullstackDummyTokenForMoto000000",
+            "repository_owner": "example-org",
+            "repository_name": "example-app"
+          }
+        }
+      ],
+      "providerVersion": "~> 5.0"
+    }
+  ]
+}

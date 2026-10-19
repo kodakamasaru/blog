@@ -1,0 +1,19 @@
+# OS / editor
+.DS_Store
+.idea/
+*.iml
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/ios/Pods/
+**/android/.gradle/
+**/android/local.properties
+xcuserdata/
+*.xcuserstate

@@ -1,0 +1,10 @@
+.terraform/
+plan.out
+node_modules/
+dist/
+test-results/
+samples/.work/
+tfscope.plan
+tfscope_override.tf
+viewer/public/samples/
+samples/*.local.json

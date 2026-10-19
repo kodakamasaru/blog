@@ -1,0 +1,211 @@
+{
+  "$comment": "サンプルごとの「正解の線」。各サンプルの README とコードを読んで手で書いたもの。report はこのうち何本が図に出たか（再現率）を測る。キーは「サンプルID/スタックのディレクトリ」。A -> B は向き付き、A <-> B はどちら向きでもよい。nodes はその視点に出ていてほしいノード。 absent は「出てはいけない線」（余計な線が出ていないかを測る）。",
+  "photo-share/.": {
+    "network": {
+      "edges": [
+        "internet -> aws_internet_gateway.main",
+        "aws_internet_gateway.main -> aws_lb.public",
+        "aws_lb.public -> aws_ecs_service.api",
+        "aws_ecs_service.api -> aws_db_instance.main",
+        "aws_nat_gateway.main -> aws_internet_gateway.main"
+      ]
+    },
+    "iam": {
+      "edges": [
+        "aws_ecs_service.api -> aws_iam_role.api_task",
+        "aws_iam_role.api_task -> aws_s3_bucket.uploads",
+        "aws_iam_role.thumbnail -> aws_dynamodb_table.photos",
+        "aws_s3_bucket.uploads -> aws_sqs_queue.uploaded"
+      ]
+    },
+    "data": {
+      "edges": [
+        "internet -> aws_lb.public",
+        "aws_lb.public -> aws_ecs_service.api",
+        "aws_s3_bucket.uploads -> aws_sqs_queue.uploaded",
+        "aws_sqs_queue.uploaded -> aws_lambda_function.thumbnail",
+        "aws_lambda_function.thumbnail -> aws_dynamodb_table.photos",
+        "aws_ecs_service.api <-> aws_db_instance.main"
+      ]
+    }
+  },
+  "ecs-fargate/examples/fargate": {
+    "network": {
+      "edges": [
+        "internet -> module.vpc.aws_internet_gateway.this[0]",
+        "module.vpc.aws_internet_gateway.this[0] -> module.alb.aws_lb.this[0]",
+        "module.alb.aws_lb.this[0] -> module.ecs_service.aws_ecs_service.this[0]"
+      ],
+      "nodes": [
+        "module.vpc.aws_nat_gateway.this[0]"
+      ]
+    },
+    "iam": {
+      "edges": [
+        "module.ecs_service.aws_ecs_service.this[0] -> module.ecs_service.aws_iam_role.tasks[0]",
+        "module.ecs_service.aws_ecs_service.this[0] -> module.ecs_service.aws_iam_role.task_exec[0]"
+      ]
+    },
+    "data": {
+      "edges": [
+        "internet -> module.alb.aws_lb.this[0]",
+        "module.alb.aws_lb.this[0] -> module.ecs_service.aws_ecs_service.this[0]"
+      ]
+    }
+  },
+  "vpc-complete/examples/complete": {
+    "network": {
+      "edges": [
+        "module.vpc.aws_nat_gateway.this[0] -> module.vpc.aws_internet_gateway.this[0]",
+        "internet <-> module.vpc.aws_internet_gateway.this[0]"
+      ],
+      "nodes": [
+        "module.vpc_endpoints.aws_vpc_endpoint.this[\"s3\"]",
+        "module.vpc_endpoints.aws_vpc_endpoint.this[\"ecr_api\"]",
+        "module.vpc_endpoints.aws_vpc_endpoint.this[\"dynamodb\"]"
+      ]
+    }
+  },
+  "apigw-lambda-ddb/apigw-lambda-dynamodb-terraform": {
+    "iam": {
+      "edges": [
+        "aws_lambda_function.apigw_lambda_ddb -> aws_iam_role.lambda_exec",
+        "aws_iam_role.lambda_exec -> aws_dynamodb_table.movie_table",
+        "aws_apigatewayv2_api.http_lambda -> aws_lambda_function.apigw_lambda_ddb"
+      ]
+    },
+    "data": {
+      "edges": [
+        "internet -> aws_apigatewayv2_api.http_lambda",
+        "aws_apigatewayv2_api.http_lambda -> aws_lambda_function.apigw_lambda_ddb",
+        "aws_lambda_function.apigw_lambda_ddb -> aws_dynamodb_table.movie_table"
+      ]
+    }
+  },
+  "apigw-lambda-rds-proxy/apigw-http-api-lambda-rds-proxy-terraform/vpc-rds-setup": {
+    "network": {
+      "edges": [
+        "aws_instance.this[0] -> aws_rds_cluster.aurora_mysql",
+        "aws_instance.this[0] -> aws_db_proxy.mysql_proxy",
+        "aws_nat_gateway.poc_nat_gwy -> aws_internet_gateway.poc_vpc_igw"
+      ],
+      "nodes": [
+        "aws_rds_cluster.aurora_mysql",
+        "aws_db_proxy.mysql_proxy"
+      ]
+    },
+    "iam": {
+      "edges": [
+        "aws_db_proxy.mysql_proxy -> aws_iam_role.rds_proxy",
+        "aws_iam_role.rds_proxy -> aws_secretsmanager_secret.aurora-mysql-secret"
+      ]
+    },
+    "data": {
+      "edges": [
+        "aws_db_proxy.mysql_proxy -> aws_rds_cluster.aurora_mysql",
+        "aws_secretsmanager_secret.aurora-mysql-secret -> aws_db_proxy.mysql_proxy"
+      ]
+    }
+  },
+  "apigw-lambda-rds-proxy/apigw-http-api-lambda-rds-proxy-terraform": {
+    "iam": {
+      "edges": [
+        "aws_lambda_function.rds_proxy_function -> aws_iam_role.lambda_exec",
+        "aws_apigatewayv2_api.this -> aws_lambda_function.rds_proxy_function"
+      ]
+    },
+    "data": {
+      "edges": [
+        "internet -> aws_apigatewayv2_api.this",
+        "aws_apigatewayv2_api.this -> aws_lambda_function.rds_proxy_function"
+      ]
+    }
+  },
+  "eventbridge-sns-lambda/eventbridge-sns-lambda-terraform": {
+    "iam": {
+      "edges": [
+        "aws_lambda_function.lambda_function -> aws_iam_role.lambda_iam_role",
+        "aws_cloudwatch_event_rule.MyEventRule -> aws_sns_topic.MySNSTopic",
+        "aws_sns_topic.MySNSTopic -> aws_lambda_function.lambda_function"
+      ]
+    },
+    "data": {
+      "edges": [
+        "aws_cloudwatch_event_rule.MyEventRule -> aws_sns_topic.MySNSTopic",
+        "aws_sns_topic.MySNSTopic -> aws_lambda_function.lambda_function"
+      ]
+    }
+  },
+  "ecs-blueprints-queue/terraform/fargate-examples/core-infra": {
+    "network": {
+      "edges": [
+        "module.vpc.aws_nat_gateway.this[0] -> module.vpc.aws_internet_gateway.this[0]",
+        "internet <-> module.vpc.aws_internet_gateway.this[0]"
+      ],
+      "nodes": [
+        "module.vpc.aws_vpc.this[0]"
+      ]
+    }
+  },
+  "ecs-blueprints-queue/terraform/fargate-examples/queue-processing": {
+    "iam": {
+      "edges": [
+        "module.lambda_function.aws_lambda_function.this[0] -> module.lambda_function.aws_iam_role.lambda[0]",
+        "module.lambda_function.aws_iam_role.lambda[0] -> module.sqs.aws_sqs_queue.this[0]",
+        "module.ecs_service.aws_iam_role.tasks[0] -> module.sqs.aws_sqs_queue.this[0]",
+        "module.ecs_service.aws_ecs_service.this[0] -> module.ecs_service.aws_iam_role.tasks[0]"
+      ]
+    },
+    "data": {
+      "edges": [
+        "module.source_s3_bucket.aws_s3_bucket.this[0] -> module.sqs.aws_sqs_queue.this[0]",
+        "aws_cloudwatch_event_rule.fargate_scaling -> module.lambda_function.aws_lambda_function.this[0]",
+        "module.sqs.aws_sqs_queue.this[0] -> module.ecs_service.aws_ecs_service.this[0]",
+        "module.codepipeline_ci_cd.aws_codepipeline.this -> module.codebuild_ci.aws_codebuild_project.this"
+      ]
+    }
+  },
+  "ecs-fullstack/Infrastructure": {
+    "network": {
+      "edges": [
+        "internet -> module.networking.aws_internet_gateway.igw",
+        "module.networking.aws_internet_gateway.igw -> module.alb_server.aws_alb.alb[0]",
+        "module.networking.aws_internet_gateway.igw -> module.alb_client.aws_alb.alb[0]",
+        "module.alb_server.aws_alb.alb[0] -> module.ecs_service_server.aws_ecs_service.ecs_service",
+        "module.alb_client.aws_alb.alb[0] -> module.ecs_service_client.aws_ecs_service.ecs_service",
+        "module.networking.aws_nat_gateway.natgw -> module.networking.aws_internet_gateway.igw"
+      ]
+    },
+    "iam": {
+      "edges": [
+        "module.ecs_service_server.aws_ecs_service.ecs_service -> module.ecs_role.aws_iam_role.ecs_task_role[0]",
+        "module.ecs_service_client.aws_ecs_service.ecs_service -> module.ecs_role.aws_iam_role.ecs_task_role[0]",
+        "module.ecs_role.aws_iam_role.ecs_task_role[0] -> module.dynamodb_table.aws_dynamodb_table.dynamodb_table",
+        "module.codebuild_server.aws_codebuild_project.aws_codebuild -> module.devops_role.aws_iam_role.devops_role[0]",
+        "module.devops_role.aws_iam_role.devops_role[0] -> module.ecr_server.aws_ecr_repository.ecr_repository",
+        "module.devops_role.aws_iam_role.devops_role[0] -> module.ecr_client.aws_ecr_repository.ecr_repository"
+      ]
+    },
+    "data": {
+      "edges": [
+        "internet -> module.alb_server.aws_alb.alb[0]",
+        "internet -> module.alb_client.aws_alb.alb[0]",
+        "module.alb_server.aws_alb.alb[0] -> module.ecs_service_server.aws_ecs_service.ecs_service",
+        "module.alb_client.aws_alb.alb[0] -> module.ecs_service_client.aws_ecs_service.ecs_service",
+        "module.dynamodb_table.aws_dynamodb_table.dynamodb_table -> module.ecs_service_server.aws_ecs_service.ecs_service",
+        "module.codepipeline.aws_codepipeline.aws_codepipeline -> module.codebuild_server.aws_codebuild_project.aws_codebuild",
+        "module.codepipeline.aws_codepipeline.aws_codepipeline -> module.codebuild_client.aws_codebuild_project.aws_codebuild",
+        "module.codebuild_server.aws_codebuild_project.aws_codebuild -> module.ecr_server.aws_ecr_repository.ecr_repository",
+        "module.codebuild_client.aws_codebuild_project.aws_codebuild -> module.ecr_client.aws_ecr_repository.ecr_repository"
+      ],
+      "absent": [
+        "module.codebuild_server.aws_codebuild_project.aws_codebuild -> module.codebuild_client.aws_codebuild_project.aws_codebuild",
+        "module.codebuild_client.aws_codebuild_project.aws_codebuild -> module.codebuild_server.aws_codebuild_project.aws_codebuild",
+        "module.codebuild_server.aws_codebuild_project.aws_codebuild -> module.ecr_client.aws_ecr_repository.ecr_repository",
+        "module.codebuild_client.aws_codebuild_project.aws_codebuild -> module.ecr_server.aws_ecr_repository.ecr_repository",
+        "module.codepipeline.aws_codepipeline.aws_codepipeline -> module.ecr_server.aws_ecr_repository.ecr_repository",
+        "module.codepipeline.aws_codepipeline.aws_codepipeline -> module.ecr_client.aws_ecr_repository.ecr_repository"
+      ]
+    }
+  }
+}

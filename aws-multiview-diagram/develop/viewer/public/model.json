@@ -1,0 +1,2696 @@
+{
+  "meta": {
+    "prefix": "photo-share-",
+    "region": "ap-northeast-1",
+    "generatedFrom": "terraform show -json",
+    "terraformVersion": "1.5.7"
+  },
+  "nodes": [
+    {
+      "id": "aws_db_instance.main",
+      "address": "aws_db_instance.main",
+      "type": "aws_db_instance",
+      "summary": "postgres 16.4 · db.t4g.medium · Multi-AZ",
+      "settings": [
+        {
+          "label": "エンジン",
+          "value": "postgres 16.4"
+        },
+        {
+          "label": "インスタンスクラス",
+          "value": "db.t4g.medium"
+        },
+        {
+          "label": "ストレージ",
+          "value": "gp3 50〜200 GB"
+        },
+        {
+          "label": "Multi-AZ",
+          "value": "有効"
+        },
+        {
+          "label": "暗号化",
+          "value": "有効"
+        },
+        {
+          "label": "バックアップ保持",
+          "value": "7日"
+        },
+        {
+          "label": "削除保護",
+          "value": "有効"
+        },
+        {
+          "label": "Performance Insights",
+          "value": "有効"
+        },
+        {
+          "label": "マスターパスワード",
+          "value": "Secrets Manager で管理"
+        },
+        {
+          "label": "エンドポイント",
+          "value": "apply 時に決定",
+          "pending": true
+        }
+      ],
+      "kind": "RDS",
+      "name": "db",
+      "fullName": "photo-share-db",
+      "category": "database",
+      "attrs": {
+        "allocated_storage": 50,
+        "auto_minor_version_upgrade": true,
+        "backup_retention_period": 7,
+        "db_name": "photo",
+        "db_subnet_group_name": "photo-share-db",
+        "delete_automated_backups": true,
+        "deletion_protection": true,
+        "engine": "postgres",
+        "engine_version": "16.4",
+        "final_snapshot_identifier": "photo-share-db-final",
+        "identifier": "photo-share-db",
+        "instance_class": "db.t4g.medium",
+        "manage_master_user_password": true,
+        "max_allocated_storage": 200,
+        "monitoring_interval": 0,
+        "multi_az": true,
+        "performance_insights_enabled": true,
+        "storage_encrypted": true,
+        "storage_type": "gp3",
+        "username": "app"
+      },
+      "related": [
+        "aws_db_subnet_group.main",
+        "aws_security_group.db",
+        "aws_ecs_task_definition.api"
+      ]
+    },
+    {
+      "id": "aws_dynamodb_table.photos",
+      "address": "aws_dynamodb_table.photos",
+      "type": "aws_dynamodb_table",
+      "summary": "オンデマンド · PK: photo_id",
+      "settings": [
+        {
+          "label": "キャパシティ",
+          "value": "オンデマンド"
+        },
+        {
+          "label": "キー",
+          "value": "PK: photo_id"
+        },
+        {
+          "label": "PITR",
+          "value": "有効"
+        },
+        {
+          "label": "暗号化",
+          "value": "KMS"
+        },
+        {
+          "label": "削除保護",
+          "value": "有効"
+        }
+      ],
+      "kind": "DynamoDB",
+      "name": "photos",
+      "fullName": "photo-share-photos",
+      "category": "database",
+      "attrs": {
+        "billing_mode": "PAY_PER_REQUEST",
+        "deletion_protection_enabled": true,
+        "hash_key": "photo_id",
+        "name": "photo-share-photos"
+      },
+      "related": [
+        "data.aws_iam_policy_document.api_task",
+        "data.aws_iam_policy_document.thumbnail",
+        "aws_ecs_task_definition.api"
+      ]
+    },
+    {
+      "id": "aws_ecs_service.api",
+      "address": "aws_ecs_service.api",
+      "type": "aws_ecs_service",
+      "summary": "Fargate · 0.5 vCPU / 1 GB · ×2",
+      "settings": [
+        {
+          "label": "起動タイプ",
+          "value": "Fargate (1.4.0)"
+        },
+        {
+          "label": "タスク数",
+          "value": "2"
+        },
+        {
+          "label": "CPU / メモリ",
+          "value": "0.5 vCPU / 1 GB（ARM64）"
+        },
+        {
+          "label": "イメージ",
+          "value": "123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/photo-api:1.4.2"
+        },
+        {
+          "label": "コンテナポート",
+          "value": "8080"
+        },
+        {
+          "label": "環境変数",
+          "value": "UPLOAD_BUCKET, THUMBNAIL_BUCKET, PHOTOS_TABLE, DB_HOST"
+        },
+        {
+          "label": "シークレット",
+          "value": "DB_PASSWORD"
+        },
+        {
+          "label": "ヘルスチェック",
+          "value": "HTTP /healthz → 200（15秒ごと、3回失敗で除外）"
+        },
+        {
+          "label": "猶予期間",
+          "value": "30秒"
+        },
+        {
+          "label": "パブリック IP",
+          "value": "無効"
+        },
+        {
+          "label": "デプロイ失敗時",
+          "value": "自動ロールバック"
+        },
+        {
+          "label": "ECS Exec",
+          "value": "有効"
+        },
+        {
+          "label": "ログ",
+          "value": "CloudWatch Logs（/ecs/photo-share-api）"
+        }
+      ],
+      "kind": "ECS Service",
+      "name": "api",
+      "fullName": "photo-share-api",
+      "category": "compute",
+      "attrs": {
+        "availability_zone_rebalancing": "DISABLED",
+        "deployment_maximum_percent": 200,
+        "deployment_minimum_healthy_percent": 100,
+        "desired_count": 2,
+        "enable_execute_command": true,
+        "health_check_grace_period_seconds": 30,
+        "launch_type": "FARGATE",
+        "name": "photo-share-api",
+        "platform_version": "1.4.0",
+        "scheduling_strategy": "REPLICA"
+      },
+      "related": [
+        "aws_ecs_cluster.main",
+        "aws_lb_target_group.api",
+        "aws_security_group.api",
+        "aws_subnet.app_a",
+        "aws_subnet.app_c",
+        "aws_ecs_task_definition.api"
+      ]
+    },
+    {
+      "id": "aws_iam_role.api_exec",
+      "address": "aws_iam_role.api_exec",
+      "type": "aws_iam_role",
+      "summary": "trust: ecs-tasks",
+      "settings": [
+        {
+          "label": "信頼するサービス",
+          "value": "ecs-tasks.amazonaws.com"
+        },
+        {
+          "label": "インラインポリシー",
+          "value": "1 件"
+        },
+        {
+          "label": "最大セッション",
+          "value": "1時間"
+        }
+      ],
+      "kind": "IAM Role",
+      "name": "api-exec",
+      "fullName": "photo-share-api-exec",
+      "category": "security",
+      "attrs": {
+        "max_session_duration": 3600,
+        "name": "photo-share-api-exec",
+        "path": "/",
+        "trustedBy": [
+          "ecs-tasks.amazonaws.com"
+        ]
+      },
+      "related": [
+        "data.aws_iam_policy_document.ecs_tasks_assume",
+        "aws_ecs_task_definition.api",
+        "aws_iam_role_policy.api_exec"
+      ]
+    },
+    {
+      "id": "aws_iam_role.api_task",
+      "address": "aws_iam_role.api_task",
+      "type": "aws_iam_role",
+      "summary": "trust: ecs-tasks",
+      "settings": [
+        {
+          "label": "信頼するサービス",
+          "value": "ecs-tasks.amazonaws.com"
+        },
+        {
+          "label": "インラインポリシー",
+          "value": "1 件"
+        },
+        {
+          "label": "最大セッション",
+          "value": "1時間"
+        }
+      ],
+      "kind": "IAM Role",
+      "name": "api-task",
+      "fullName": "photo-share-api-task",
+      "category": "security",
+      "attrs": {
+        "max_session_duration": 3600,
+        "name": "photo-share-api-task",
+        "path": "/",
+        "trustedBy": [
+          "ecs-tasks.amazonaws.com"
+        ]
+      },
+      "related": [
+        "data.aws_iam_policy_document.ecs_tasks_assume",
+        "aws_ecs_task_definition.api",
+        "aws_iam_role_policy.api_task"
+      ]
+    },
+    {
+      "id": "aws_iam_role.thumbnail",
+      "address": "aws_iam_role.thumbnail",
+      "type": "aws_iam_role",
+      "summary": "trust: lambda",
+      "settings": [
+        {
+          "label": "信頼するサービス",
+          "value": "lambda.amazonaws.com"
+        },
+        {
+          "label": "インラインポリシー",
+          "value": "1 件"
+        },
+        {
+          "label": "最大セッション",
+          "value": "1時間"
+        }
+      ],
+      "kind": "IAM Role",
+      "name": "thumbnail",
+      "fullName": "photo-share-thumbnail",
+      "category": "security",
+      "attrs": {
+        "max_session_duration": 3600,
+        "name": "photo-share-thumbnail",
+        "path": "/",
+        "trustedBy": [
+          "lambda.amazonaws.com"
+        ]
+      },
+      "related": [
+        "data.aws_iam_policy_document.lambda_assume",
+        "aws_iam_role_policy.thumbnail"
+      ]
+    },
+    {
+      "id": "aws_internet_gateway.main",
+      "address": "aws_internet_gateway.main",
+      "type": "aws_internet_gateway",
+      "summary": "",
+      "settings": [],
+      "kind": "Internet Gateway",
+      "name": "igw",
+      "fullName": "photo-share-igw",
+      "category": "network",
+      "attrs": {},
+      "related": [
+        "aws_route_table.public"
+      ]
+    },
+    {
+      "id": "aws_lambda_function.thumbnail",
+      "address": "aws_lambda_function.thumbnail",
+      "type": "aws_lambda_function",
+      "summary": "python3.12 · arm64 · 1024MB / 60秒",
+      "settings": [
+        {
+          "label": "ランタイム",
+          "value": "python3.12"
+        },
+        {
+          "label": "アーキテクチャ",
+          "value": "arm64"
+        },
+        {
+          "label": "メモリ",
+          "value": "1024 MB"
+        },
+        {
+          "label": "タイムアウト",
+          "value": "60秒"
+        },
+        {
+          "label": "X-Ray",
+          "value": "有効"
+        },
+        {
+          "label": "環境変数",
+          "value": "DEST_BUCKET, PHOTOS_TABLE, SOURCE_BUCKET"
+        },
+        {
+          "label": "トリガー",
+          "value": "SQS（バッチ 10件 / 最大 5秒待ち）"
+        },
+        {
+          "label": "同時実行の上限",
+          "value": "20"
+        },
+        {
+          "label": "部分失敗の報告",
+          "value": "有効"
+        }
+      ],
+      "kind": "Lambda",
+      "name": "thumbnail",
+      "fullName": "photo-share-thumbnail",
+      "category": "compute",
+      "attrs": {
+        "function_name": "photo-share-thumbnail",
+        "handler": "app.handler",
+        "memory_size": 1024,
+        "package_type": "Zip",
+        "reserved_concurrent_executions": -1,
+        "runtime": "python3.12",
+        "timeout": 60
+      },
+      "related": [
+        "aws_lambda_event_source_mapping.uploaded"
+      ]
+    },
+    {
+      "id": "aws_lb.public",
+      "address": "aws_lb.public",
+      "type": "aws_lb.application",
+      "summary": "internet-facing · HTTP:80, HTTPS:443",
+      "settings": [
+        {
+          "label": "スキーム",
+          "value": "internet-facing"
+        },
+        {
+          "label": "リスナー",
+          "value": "HTTP:80 → リダイレクト HTTPS:443 (301)"
+        },
+        {
+          "label": "リスナー",
+          "value": "HTTPS:443 → api-tg"
+        },
+        {
+          "label": "TLS ポリシー",
+          "value": "ELBSecurityPolicy-TLS13-1-2-2021-06"
+        },
+        {
+          "label": "アイドルタイムアウト",
+          "value": "60秒"
+        },
+        {
+          "label": "不正なヘッダーを破棄",
+          "value": "有効"
+        },
+        {
+          "label": "削除保護",
+          "value": "有効"
+        }
+      ],
+      "kind": "ALB",
+      "name": "alb",
+      "fullName": "photo-share-alb",
+      "category": "network",
+      "attrs": {
+        "client_keep_alive": 3600,
+        "desync_mitigation_mode": "defensive",
+        "drop_invalid_header_fields": true,
+        "enable_deletion_protection": true,
+        "enable_http2": true,
+        "idle_timeout": 60,
+        "load_balancer_type": "application",
+        "name": "photo-share-alb",
+        "xff_header_processing_mode": "append"
+      },
+      "related": [
+        "aws_security_group.alb",
+        "aws_subnet.public_a",
+        "aws_subnet.public_c",
+        "aws_lb_listener.http",
+        "aws_lb_listener.https"
+      ]
+    },
+    {
+      "id": "aws_nat_gateway.main",
+      "address": "aws_nat_gateway.main",
+      "type": "aws_nat_gateway",
+      "summary": "ap-northeast-1a（単一 AZ）",
+      "settings": [
+        {
+          "label": "配置サブネット",
+          "value": "public-a"
+        },
+        {
+          "label": "AZ",
+          "value": "ap-northeast-1a"
+        },
+        {
+          "label": "接続タイプ",
+          "value": "public"
+        },
+        {
+          "label": "冗長性",
+          "value": "NAT Gateway は 1 つだけ（AZ 障害時は外向き通信が止まる）"
+        }
+      ],
+      "kind": "NAT Gateway",
+      "name": "nat",
+      "fullName": "photo-share-nat",
+      "category": "network",
+      "attrs": {
+        "connectivity_type": "public"
+      },
+      "related": [
+        "aws_eip.nat",
+        "aws_subnet.public_a",
+        "aws_route_table.app"
+      ]
+    },
+    {
+      "id": "aws_s3_bucket.thumbnails",
+      "address": "aws_s3_bucket.thumbnails",
+      "type": "aws_s3_bucket",
+      "summary": "SSE-S3 · 公開ブロック",
+      "settings": [
+        {
+          "label": "暗号化",
+          "value": "SSE-S3"
+        },
+        {
+          "label": "バージョニング",
+          "value": "無効"
+        },
+        {
+          "label": "パブリックアクセス",
+          "value": "すべてブロック"
+        },
+        {
+          "label": "ライフサイクル",
+          "value": "expire-old-versions"
+        }
+      ],
+      "kind": "S3",
+      "name": "thumbnails",
+      "fullName": "photo-share-thumbnails",
+      "category": "storage",
+      "attrs": {
+        "bucket": "photo-share-thumbnails"
+      },
+      "related": [
+        "data.aws_iam_policy_document.api_task",
+        "data.aws_iam_policy_document.thumbnail",
+        "aws_ecs_task_definition.api",
+        "aws_s3_bucket_lifecycle_configuration.thumbnails",
+        "aws_s3_bucket_public_access_block.thumbnails",
+        "aws_s3_bucket_server_side_encryption_configuration.thumbnails"
+      ]
+    },
+    {
+      "id": "aws_s3_bucket.uploads",
+      "address": "aws_s3_bucket.uploads",
+      "type": "aws_s3_bucket",
+      "summary": "SSE-KMS · バージョニング · 公開ブロック",
+      "settings": [
+        {
+          "label": "暗号化",
+          "value": "SSE-KMS"
+        },
+        {
+          "label": "バージョニング",
+          "value": "有効"
+        },
+        {
+          "label": "パブリックアクセス",
+          "value": "すべてブロック"
+        },
+        {
+          "label": "イベント通知",
+          "value": "s3:ObjectCreated:*（originals/） → SQS"
+        }
+      ],
+      "kind": "S3",
+      "name": "uploads",
+      "fullName": "photo-share-uploads",
+      "category": "storage",
+      "attrs": {
+        "bucket": "photo-share-uploads"
+      },
+      "related": [
+        "data.aws_iam_policy_document.api_task",
+        "data.aws_iam_policy_document.thumbnail",
+        "data.aws_iam_policy_document.uploaded_queue",
+        "aws_ecs_task_definition.api",
+        "aws_s3_bucket_notification.uploads",
+        "aws_s3_bucket_public_access_block.uploads",
+        "aws_s3_bucket_server_side_encryption_configuration.uploads",
+        "aws_s3_bucket_versioning.uploads"
+      ]
+    },
+    {
+      "id": "aws_secretsmanager_secret.db",
+      "address": "aws_secretsmanager_secret.db",
+      "type": "aws_secretsmanager_secret",
+      "summary": "ローテーションなし",
+      "settings": [
+        {
+          "label": "ローテーション",
+          "value": "未設定"
+        },
+        {
+          "label": "削除までの猶予",
+          "value": "7日"
+        }
+      ],
+      "kind": "Secrets Manager",
+      "name": "photo-share/db-password",
+      "fullName": "photo-share/db-password",
+      "category": "security",
+      "attrs": {
+        "name": "photo-share/db-password",
+        "recovery_window_in_days": 7
+      },
+      "related": [
+        "data.aws_iam_policy_document.api_exec",
+        "aws_ecs_task_definition.api"
+      ]
+    },
+    {
+      "id": "aws_sqs_queue.uploaded",
+      "address": "aws_sqs_queue.uploaded",
+      "type": "aws_sqs_queue",
+      "summary": "可視性 360秒 · 保持 4日 · DLQ あり",
+      "settings": [
+        {
+          "label": "種類",
+          "value": "標準"
+        },
+        {
+          "label": "可視性タイムアウト",
+          "value": "360秒"
+        },
+        {
+          "label": "メッセージ保持",
+          "value": "4日"
+        },
+        {
+          "label": "ロングポーリング",
+          "value": "20秒"
+        },
+        {
+          "label": "暗号化",
+          "value": "SQS マネージド SSE"
+        },
+        {
+          "label": "DLQ",
+          "value": "uploaded-dlq（5回失敗で移動）"
+        }
+      ],
+      "kind": "SQS",
+      "name": "uploaded",
+      "fullName": "photo-share-uploaded",
+      "category": "messaging",
+      "attrs": {
+        "delay_seconds": 0,
+        "kms_data_key_reuse_period_seconds": 0,
+        "max_message_size": 262144,
+        "message_retention_seconds": 345600,
+        "name": "photo-share-uploaded",
+        "receive_wait_time_seconds": 20,
+        "sqs_managed_sse_enabled": true,
+        "visibility_timeout_seconds": 360
+      },
+      "related": [
+        "data.aws_iam_policy_document.thumbnail",
+        "data.aws_iam_policy_document.uploaded_queue",
+        "aws_lambda_event_source_mapping.uploaded",
+        "aws_s3_bucket_notification.uploads",
+        "aws_sqs_queue_policy.uploaded"
+      ]
+    },
+    {
+      "id": "aws_sqs_queue.uploaded_dlq",
+      "address": "aws_sqs_queue.uploaded_dlq",
+      "type": "aws_sqs_queue",
+      "summary": "可視性 30秒 · 保持 14日 · DLQ",
+      "settings": [
+        {
+          "label": "種類",
+          "value": "標準"
+        },
+        {
+          "label": "可視性タイムアウト",
+          "value": "30秒"
+        },
+        {
+          "label": "メッセージ保持",
+          "value": "14日"
+        },
+        {
+          "label": "ロングポーリング",
+          "value": "無効"
+        },
+        {
+          "label": "用途",
+          "value": "uploaded の DLQ"
+        }
+      ],
+      "kind": "SQS",
+      "name": "uploaded-dlq",
+      "fullName": "photo-share-uploaded-dlq",
+      "category": "messaging",
+      "attrs": {
+        "delay_seconds": 0,
+        "max_message_size": 262144,
+        "message_retention_seconds": 1209600,
+        "name": "photo-share-uploaded-dlq",
+        "receive_wait_time_seconds": 0,
+        "visibility_timeout_seconds": 30
+      },
+      "related": []
+    },
+    {
+      "id": "aws_vpc.main",
+      "address": "aws_vpc.main",
+      "type": "aws_vpc",
+      "summary": "10.0.0.0/16",
+      "settings": [
+        {
+          "label": "CIDR",
+          "value": "10.0.0.0/16"
+        },
+        {
+          "label": "DNS ホスト名",
+          "value": "有効"
+        },
+        {
+          "label": "DNS 解決",
+          "value": "有効"
+        }
+      ],
+      "kind": "VPC",
+      "name": "vpc",
+      "fullName": "photo-share-vpc",
+      "category": "network",
+      "attrs": {
+        "cidr_block": "10.0.0.0/16",
+        "enable_dns_hostnames": true,
+        "enable_dns_support": true,
+        "instance_tenancy": "default"
+      },
+      "related": [
+        "aws_lb_target_group.api",
+        "aws_route_table.app",
+        "aws_route_table.public",
+        "aws_security_group.alb",
+        "aws_security_group.api",
+        "aws_security_group.db",
+        "aws_subnet.app_a",
+        "aws_subnet.app_c",
+        "aws_subnet.db_a",
+        "aws_subnet.db_c",
+        "aws_subnet.public_a",
+        "aws_subnet.public_c"
+      ]
+    },
+    {
+      "id": "region:ap-northeast-1",
+      "type": "region",
+      "kind": "Region",
+      "name": "ap-northeast-1",
+      "category": "group",
+      "summary": "",
+      "settings": [],
+      "attrs": {},
+      "related": [],
+      "address": null
+    },
+    {
+      "id": "tier:aws_vpc.main:app",
+      "type": "private-subnet",
+      "kind": "Private subnet",
+      "name": "app",
+      "category": "group",
+      "summary": "1a / 1c",
+      "attrs": {
+        "subnets": [
+          {
+            "address": "aws_subnet.app_a",
+            "name": "photo-share-app-a",
+            "cidr": "10.0.10.0/24",
+            "az": "ap-northeast-1a"
+          },
+          {
+            "address": "aws_subnet.app_c",
+            "name": "photo-share-app-c",
+            "cidr": "10.0.11.0/24",
+            "az": "ap-northeast-1c"
+          }
+        ]
+      },
+      "settings": [],
+      "address": null
+    },
+    {
+      "id": "tier:aws_vpc.main:db",
+      "type": "private-subnet",
+      "kind": "Private subnet",
+      "name": "db",
+      "category": "group",
+      "summary": "1a / 1c",
+      "attrs": {
+        "subnets": [
+          {
+            "address": "aws_subnet.db_a",
+            "name": "photo-share-db-a",
+            "cidr": "10.0.20.0/24",
+            "az": "ap-northeast-1a"
+          },
+          {
+            "address": "aws_subnet.db_c",
+            "name": "photo-share-db-c",
+            "cidr": "10.0.21.0/24",
+            "az": "ap-northeast-1c"
+          }
+        ]
+      },
+      "settings": [],
+      "address": null
+    },
+    {
+      "id": "tier:aws_vpc.main:public",
+      "type": "public-subnet",
+      "kind": "Public subnet",
+      "name": "public",
+      "category": "group",
+      "summary": "1a / 1c",
+      "attrs": {
+        "subnets": [
+          {
+            "address": "aws_subnet.public_a",
+            "name": "photo-share-public-a",
+            "cidr": "10.0.0.0/24",
+            "az": "ap-northeast-1a"
+          },
+          {
+            "address": "aws_subnet.public_c",
+            "name": "photo-share-public-c",
+            "cidr": "10.0.1.0/24",
+            "az": "ap-northeast-1c"
+          }
+        ]
+      },
+      "settings": [],
+      "address": null
+    },
+    {
+      "summary": "",
+      "settings": [],
+      "attrs": {},
+      "related": [],
+      "category": "external",
+      "id": "internet",
+      "type": "internet",
+      "kind": "Internet",
+      "name": "Internet"
+    },
+    {
+      "id": "svc:aws_s3_bucket",
+      "type": "aws_s3_bucket",
+      "kind": "S3",
+      "name": "2 個",
+      "category": "storage",
+      "summary": ""
+    },
+    {
+      "id": "svc:aws_sqs_queue",
+      "type": "aws_sqs_queue",
+      "kind": "SQS",
+      "name": "2 個",
+      "category": "messaging",
+      "summary": ""
+    }
+  ],
+  "sources": {
+    "aws_lb.public": {
+      "file": "app.tf",
+      "line": 3,
+      "code": "resource \"aws_lb\" \"public\" {\n  name                       = \"${local.name}-alb\"\n  load_balancer_type         = \"application\"\n  internal                   = false\n  subnets                    = [aws_subnet.public_a.id, aws_subnet.public_c.id]\n  security_groups            = [aws_security_group.alb.id]\n  idle_timeout               = 60\n  drop_invalid_header_fields = true\n  enable_deletion_protection = true\n}"
+    },
+    "aws_lb_target_group.api": {
+      "file": "app.tf",
+      "line": 14,
+      "code": "resource \"aws_lb_target_group\" \"api\" {\n  name                 = \"${local.name}-api-tg\"\n  port                 = 8080\n  protocol             = \"HTTP\"\n  target_type          = \"ip\"\n  vpc_id               = aws_vpc.main.id\n  deregistration_delay = 30\n  health_check {\n    path                = \"/healthz\"\n    matcher             = \"200\"\n    interval            = 15\n    healthy_threshold   = 2\n    unhealthy_threshold = 3\n  }\n}"
+    },
+    "aws_lb_listener.https": {
+      "file": "app.tf",
+      "line": 30,
+      "code": "resource \"aws_lb_listener\" \"https\" {\n  load_balancer_arn = aws_lb.public.arn\n  port              = 443\n  protocol          = \"HTTPS\"\n  ssl_policy        = \"ELBSecurityPolicy-TLS13-1-2-2021-06\"\n  certificate_arn   = \"arn:aws:acm:ap-northeast-1:123456789012:certificate/dummy\"\n  default_action {\n    type             = \"forward\"\n    target_group_arn = aws_lb_target_group.api.arn\n  }\n}"
+    },
+    "aws_lb_listener.http": {
+      "file": "app.tf",
+      "line": 42,
+      "code": "resource \"aws_lb_listener\" \"http\" {\n  load_balancer_arn = aws_lb.public.arn\n  port              = 80\n  protocol          = \"HTTP\"\n  default_action {\n    type = \"redirect\"\n    redirect {\n      port        = \"443\"\n      protocol    = \"HTTPS\"\n      status_code = \"HTTP_301\"\n    }\n  }\n}"
+    },
+    "aws_ecs_cluster.main": {
+      "file": "app.tf",
+      "line": 56,
+      "code": "resource \"aws_ecs_cluster\" \"main\" {\n  name = \"${local.name}-cluster\"\n  setting {\n    name  = \"containerInsights\"\n    value = \"enabled\"\n  }\n}"
+    },
+    "aws_cloudwatch_log_group.api": {
+      "file": "app.tf",
+      "line": 64,
+      "code": "resource \"aws_cloudwatch_log_group\" \"api\" {\n  name              = \"/ecs/${local.name}-api\"\n  retention_in_days = 30\n}"
+    },
+    "aws_ecs_task_definition.api": {
+      "file": "app.tf",
+      "line": 69,
+      "code": "resource \"aws_ecs_task_definition\" \"api\" {\n  family                   = \"${local.name}-api\"\n  requires_compatibilities = [\"FARGATE\"]\n  network_mode             = \"awsvpc\"\n  cpu                      = \"512\"\n  memory                   = \"1024\"\n  task_role_arn            = aws_iam_role.api_task.arn\n  execution_role_arn       = aws_iam_role.api_exec.arn\n  runtime_platform {\n    operating_system_family = \"LINUX\"\n    cpu_architecture        = \"ARM64\"\n  }\n  container_definitions = jsonencode([{\n    name         = \"api\"\n    image        = \"123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/photo-api:1.4.2\"\n    essential    = true\n    portMappings = [{ containerPort = 8080, protocol = \"tcp\" }]\n    environment = [\n      { name = \"UPLOAD_BUCKET\", value = aws_s3_bucket.uploads.bucket },\n      { name = \"THUMBNAIL_BUCKET\", value = aws_s3_bucket.thumbnails.bucket },\n      { name = \"PHOTOS_TABLE\", value = aws_dynamodb_table.photos.name },\n      { name = \"DB_HOST\", value = aws_db_instance.main.address },\n    ]\n    secrets = [\n      { name = \"DB_PASSWORD\", valueFrom = aws_secretsmanager_secret.db.arn },\n    ]\n    logConfiguration = {\n      logDriver = \"awslogs\"\n      options = {\n        awslogs-group         = aws_cloudwatch_log_group.api.name\n        awslogs-region        = \"ap-northeast-1\"\n        awslogs-stream-prefix = \"api\"\n      }\n    }\n  }])\n}"
+    },
+    "aws_ecs_service.api": {
+      "file": "app.tf",
+      "line": 106,
+      "code": "resource \"aws_ecs_service\" \"api\" {\n  name                              = \"${local.name}-api\"\n  cluster                           = aws_ecs_cluster.main.id\n  task_definition                   = aws_ecs_task_definition.api.arn\n  desired_count                     = 2\n  launch_type                       = \"FARGATE\"\n  platform_version                  = \"1.4.0\"\n  health_check_grace_period_seconds = 30\n  enable_execute_command            = true\n  network_configuration {\n    subnets          = [aws_subnet.app_a.id, aws_subnet.app_c.id]\n    security_groups  = [aws_security_group.api.id]\n    assign_public_ip = false\n  }\n  load_balancer {\n    target_group_arn = aws_lb_target_group.api.arn\n    container_name   = \"api\"\n    container_port   = 8080\n  }\n  deployment_circuit_breaker {\n    enable   = true\n    rollback = true\n  }\n}"
+    },
+    "aws_db_subnet_group.main": {
+      "file": "app.tf",
+      "line": 131,
+      "code": "resource \"aws_db_subnet_group\" \"main\" {\n  name       = \"${local.name}-db\"\n  subnet_ids = [aws_subnet.db_a.id, aws_subnet.db_c.id]\n}"
+    },
+    "aws_db_instance.main": {
+      "file": "app.tf",
+      "line": 136,
+      "code": "resource \"aws_db_instance\" \"main\" {\n  identifier                   = \"${local.name}-db\"\n  engine                       = \"postgres\"\n  engine_version               = \"16.4\"\n  instance_class               = \"db.t4g.medium\"\n  allocated_storage            = 50\n  max_allocated_storage        = 200\n  storage_type                 = \"gp3\"\n  storage_encrypted            = true\n  multi_az                     = true\n  db_name                      = \"photo\"\n  username                     = \"app\"\n  manage_master_user_password  = true\n  backup_retention_period      = 7\n  deletion_protection          = true\n  performance_insights_enabled = true\n  db_subnet_group_name         = aws_db_subnet_group.main.name\n  vpc_security_group_ids       = [aws_security_group.db.id]\n  skip_final_snapshot          = false\n  final_snapshot_identifier    = \"${local.name}-db-final\"\n}"
+    },
+    "aws_secretsmanager_secret.db": {
+      "file": "app.tf",
+      "line": 158,
+      "code": "resource \"aws_secretsmanager_secret\" \"db\" {\n  name                    = \"${local.name}/db-password\"\n  recovery_window_in_days = 7\n}"
+    },
+    "data.aws_iam_policy_document.ecs_tasks_assume": {
+      "file": "iam.tf",
+      "line": 3,
+      "code": "data \"aws_iam_policy_document\" \"ecs_tasks_assume\" {\n  statement {\n    actions = [\"sts:AssumeRole\"]\n    principals {\n      type        = \"Service\"\n      identifiers = [\"ecs-tasks.amazonaws.com\"]\n    }\n  }\n}"
+    },
+    "aws_iam_role.api_task": {
+      "file": "iam.tf",
+      "line": 13,
+      "code": "resource \"aws_iam_role\" \"api_task\" {\n  name               = \"${local.name}-api-task\"\n  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json\n}"
+    },
+    "data.aws_iam_policy_document.api_task": {
+      "file": "iam.tf",
+      "line": 18,
+      "code": "data \"aws_iam_policy_document\" \"api_task\" {\n  statement {\n    actions   = [\"s3:PutObject\"]\n    resources = [\"${aws_s3_bucket.uploads.arn}/*\"]\n  }\n  statement {\n    actions   = [\"dynamodb:GetItem\", \"dynamodb:Query\"]\n    resources = [aws_dynamodb_table.photos.arn]\n  }\n  statement {\n    actions   = [\"s3:GetObject\"]\n    resources = [\"${aws_s3_bucket.thumbnails.arn}/*\"]\n  }\n}"
+    },
+    "aws_iam_role_policy.api_task": {
+      "file": "iam.tf",
+      "line": 33,
+      "code": "resource \"aws_iam_role_policy\" \"api_task\" {\n  role   = aws_iam_role.api_task.id\n  policy = data.aws_iam_policy_document.api_task.json\n}"
+    },
+    "aws_iam_role.api_exec": {
+      "file": "iam.tf",
+      "line": 40,
+      "code": "resource \"aws_iam_role\" \"api_exec\" {\n  name               = \"${local.name}-api-exec\"\n  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json\n}"
+    },
+    "data.aws_iam_policy_document.api_exec": {
+      "file": "iam.tf",
+      "line": 45,
+      "code": "data \"aws_iam_policy_document\" \"api_exec\" {\n  statement {\n    actions   = [\"secretsmanager:GetSecretValue\"]\n    resources = [aws_secretsmanager_secret.db.arn]\n  }\n}"
+    },
+    "aws_iam_role_policy.api_exec": {
+      "file": "iam.tf",
+      "line": 52,
+      "code": "resource \"aws_iam_role_policy\" \"api_exec\" {\n  role   = aws_iam_role.api_exec.id\n  policy = data.aws_iam_policy_document.api_exec.json\n}"
+    },
+    "data.aws_iam_policy_document.lambda_assume": {
+      "file": "iam.tf",
+      "line": 59,
+      "code": "data \"aws_iam_policy_document\" \"lambda_assume\" {\n  statement {\n    actions = [\"sts:AssumeRole\"]\n    principals {\n      type        = \"Service\"\n      identifiers = [\"lambda.amazonaws.com\"]\n    }\n  }\n}"
+    },
+    "aws_iam_role.thumbnail": {
+      "file": "iam.tf",
+      "line": 69,
+      "code": "resource \"aws_iam_role\" \"thumbnail\" {\n  name               = \"${local.name}-thumbnail\"\n  assume_role_policy = data.aws_iam_policy_document.lambda_assume.json\n}"
+    },
+    "data.aws_iam_policy_document.thumbnail": {
+      "file": "iam.tf",
+      "line": 74,
+      "code": "data \"aws_iam_policy_document\" \"thumbnail\" {\n  statement {\n    actions   = [\"sqs:ReceiveMessage\", \"sqs:DeleteMessage\", \"sqs:GetQueueAttributes\"]\n    resources = [aws_sqs_queue.uploaded.arn]\n  }\n  statement {\n    actions   = [\"s3:GetObject\"]\n    resources = [\"${aws_s3_bucket.uploads.arn}/*\"]\n  }\n  statement {\n    actions   = [\"s3:PutObject\"]\n    resources = [\"${aws_s3_bucket.thumbnails.arn}/*\"]\n  }\n  statement {\n    actions   = [\"dynamodb:PutItem\", \"dynamodb:UpdateItem\"]\n    resources = [aws_dynamodb_table.photos.arn]\n  }\n}"
+    },
+    "aws_iam_role_policy.thumbnail": {
+      "file": "iam.tf",
+      "line": 93,
+      "code": "resource \"aws_iam_role_policy\" \"thumbnail\" {\n  role   = aws_iam_role.thumbnail.id\n  policy = data.aws_iam_policy_document.thumbnail.json\n}"
+    },
+    "data.aws_iam_policy_document.uploaded_queue": {
+      "file": "iam.tf",
+      "line": 99,
+      "code": "data \"aws_iam_policy_document\" \"uploaded_queue\" {\n  statement {\n    actions   = [\"sqs:SendMessage\"]\n    resources = [aws_sqs_queue.uploaded.arn]\n    principals {\n      type        = \"Service\"\n      identifiers = [\"s3.amazonaws.com\"]\n    }\n    condition {\n      test     = \"ArnEquals\"\n      variable = \"aws:SourceArn\"\n      values   = [aws_s3_bucket.uploads.arn]\n    }\n  }\n}"
+    },
+    "aws_sqs_queue_policy.uploaded": {
+      "file": "iam.tf",
+      "line": 115,
+      "code": "resource \"aws_sqs_queue_policy\" \"uploaded\" {\n  queue_url = aws_sqs_queue.uploaded.id\n  policy    = data.aws_iam_policy_document.uploaded_queue.json\n}"
+    },
+    "aws_vpc.main": {
+      "file": "network.tf",
+      "line": 1,
+      "code": "resource \"aws_vpc\" \"main\" {\n  cidr_block           = \"10.0.0.0/16\"\n  enable_dns_support   = true\n  enable_dns_hostnames = true\n  tags                 = { Name = \"${local.name}-vpc\" }\n}"
+    },
+    "aws_internet_gateway.main": {
+      "file": "network.tf",
+      "line": 8,
+      "code": "resource \"aws_internet_gateway\" \"main\" {\n  vpc_id = aws_vpc.main.id\n  tags   = { Name = \"${local.name}-igw\" }\n}"
+    },
+    "aws_subnet.public_a": {
+      "file": "network.tf",
+      "line": 13,
+      "code": "resource \"aws_subnet\" \"public_a\" {\n  vpc_id            = aws_vpc.main.id\n  cidr_block        = \"10.0.0.0/24\"\n  availability_zone = local.azs[0]\n  tags              = { Name = \"${local.name}-public-a\", Tier = \"public\" }\n}"
+    },
+    "aws_subnet.public_c": {
+      "file": "network.tf",
+      "line": 20,
+      "code": "resource \"aws_subnet\" \"public_c\" {\n  vpc_id            = aws_vpc.main.id\n  cidr_block        = \"10.0.1.0/24\"\n  availability_zone = local.azs[1]\n  tags              = { Name = \"${local.name}-public-c\", Tier = \"public\" }\n}"
+    },
+    "aws_subnet.app_a": {
+      "file": "network.tf",
+      "line": 27,
+      "code": "resource \"aws_subnet\" \"app_a\" {\n  vpc_id            = aws_vpc.main.id\n  cidr_block        = \"10.0.10.0/24\"\n  availability_zone = local.azs[0]\n  tags              = { Name = \"${local.name}-app-a\", Tier = \"app\" }\n}"
+    },
+    "aws_subnet.app_c": {
+      "file": "network.tf",
+      "line": 34,
+      "code": "resource \"aws_subnet\" \"app_c\" {\n  vpc_id            = aws_vpc.main.id\n  cidr_block        = \"10.0.11.0/24\"\n  availability_zone = local.azs[1]\n  tags              = { Name = \"${local.name}-app-c\", Tier = \"app\" }\n}"
+    },
+    "aws_subnet.db_a": {
+      "file": "network.tf",
+      "line": 41,
+      "code": "resource \"aws_subnet\" \"db_a\" {\n  vpc_id            = aws_vpc.main.id\n  cidr_block        = \"10.0.20.0/24\"\n  availability_zone = local.azs[0]\n  tags              = { Name = \"${local.name}-db-a\", Tier = \"db\" }\n}"
+    },
+    "aws_subnet.db_c": {
+      "file": "network.tf",
+      "line": 48,
+      "code": "resource \"aws_subnet\" \"db_c\" {\n  vpc_id            = aws_vpc.main.id\n  cidr_block        = \"10.0.21.0/24\"\n  availability_zone = local.azs[1]\n  tags              = { Name = \"${local.name}-db-c\", Tier = \"db\" }\n}"
+    },
+    "aws_eip.nat": {
+      "file": "network.tf",
+      "line": 55,
+      "code": "resource \"aws_eip\" \"nat\" {\n  domain = \"vpc\"\n}"
+    },
+    "aws_nat_gateway.main": {
+      "file": "network.tf",
+      "line": 59,
+      "code": "resource \"aws_nat_gateway\" \"main\" {\n  allocation_id = aws_eip.nat.id\n  subnet_id     = aws_subnet.public_a.id\n  tags          = { Name = \"${local.name}-nat\" }\n}"
+    },
+    "aws_route_table.public": {
+      "file": "network.tf",
+      "line": 65,
+      "code": "resource \"aws_route_table\" \"public\" {\n  vpc_id = aws_vpc.main.id\n  route {\n    cidr_block = \"0.0.0.0/0\"\n    gateway_id = aws_internet_gateway.main.id\n  }\n  tags = { Name = \"${local.name}-public-rt\" }\n}"
+    },
+    "aws_route_table.app": {
+      "file": "network.tf",
+      "line": 74,
+      "code": "resource \"aws_route_table\" \"app\" {\n  vpc_id = aws_vpc.main.id\n  route {\n    cidr_block     = \"0.0.0.0/0\"\n    nat_gateway_id = aws_nat_gateway.main.id\n  }\n  tags = { Name = \"${local.name}-app-rt\" }\n}"
+    },
+    "aws_route_table_association.public_a": {
+      "file": "network.tf",
+      "line": 83,
+      "code": "resource \"aws_route_table_association\" \"public_a\" {\n  subnet_id      = aws_subnet.public_a.id\n  route_table_id = aws_route_table.public.id\n}"
+    },
+    "aws_route_table_association.public_c": {
+      "file": "network.tf",
+      "line": 88,
+      "code": "resource \"aws_route_table_association\" \"public_c\" {\n  subnet_id      = aws_subnet.public_c.id\n  route_table_id = aws_route_table.public.id\n}"
+    },
+    "aws_route_table_association.app_a": {
+      "file": "network.tf",
+      "line": 93,
+      "code": "resource \"aws_route_table_association\" \"app_a\" {\n  subnet_id      = aws_subnet.app_a.id\n  route_table_id = aws_route_table.app.id\n}"
+    },
+    "aws_route_table_association.app_c": {
+      "file": "network.tf",
+      "line": 98,
+      "code": "resource \"aws_route_table_association\" \"app_c\" {\n  subnet_id      = aws_subnet.app_c.id\n  route_table_id = aws_route_table.app.id\n}"
+    },
+    "aws_security_group.alb": {
+      "file": "network.tf",
+      "line": 105,
+      "code": "resource \"aws_security_group\" \"alb\" {\n  name   = \"${local.name}-alb-sg\"\n  vpc_id = aws_vpc.main.id\n}"
+    },
+    "aws_security_group.api": {
+      "file": "network.tf",
+      "line": 110,
+      "code": "resource \"aws_security_group\" \"api\" {\n  name   = \"${local.name}-api-sg\"\n  vpc_id = aws_vpc.main.id\n}"
+    },
+    "aws_security_group.db": {
+      "file": "network.tf",
+      "line": 115,
+      "code": "resource \"aws_security_group\" \"db\" {\n  name   = \"${local.name}-db-sg\"\n  vpc_id = aws_vpc.main.id\n}"
+    },
+    "aws_vpc_security_group_ingress_rule.alb_https": {
+      "file": "network.tf",
+      "line": 120,
+      "code": "resource \"aws_vpc_security_group_ingress_rule\" \"alb_https\" {\n  security_group_id = aws_security_group.alb.id\n  cidr_ipv4         = \"0.0.0.0/0\"\n  ip_protocol       = \"tcp\"\n  from_port         = 443\n  to_port           = 443\n}"
+    },
+    "aws_vpc_security_group_ingress_rule.alb_http": {
+      "file": "network.tf",
+      "line": 128,
+      "code": "resource \"aws_vpc_security_group_ingress_rule\" \"alb_http\" {\n  security_group_id = aws_security_group.alb.id\n  cidr_ipv4         = \"0.0.0.0/0\"\n  ip_protocol       = \"tcp\"\n  from_port         = 80\n  to_port           = 80\n}"
+    },
+    "aws_vpc_security_group_ingress_rule.api_from_alb": {
+      "file": "network.tf",
+      "line": 136,
+      "code": "resource \"aws_vpc_security_group_ingress_rule\" \"api_from_alb\" {\n  security_group_id            = aws_security_group.api.id\n  referenced_security_group_id = aws_security_group.alb.id\n  ip_protocol                  = \"tcp\"\n  from_port                    = 8080\n  to_port                      = 8080\n}"
+    },
+    "aws_vpc_security_group_ingress_rule.db_from_api": {
+      "file": "network.tf",
+      "line": 144,
+      "code": "resource \"aws_vpc_security_group_ingress_rule\" \"db_from_api\" {\n  security_group_id            = aws_security_group.db.id\n  referenced_security_group_id = aws_security_group.api.id\n  ip_protocol                  = \"tcp\"\n  from_port                    = 5432\n  to_port                      = 5432\n}"
+    },
+    "aws_s3_bucket.uploads": {
+      "file": "pipeline.tf",
+      "line": 3,
+      "code": "resource \"aws_s3_bucket\" \"uploads\" {\n  bucket = \"${local.name}-uploads\"\n}"
+    },
+    "aws_s3_bucket_versioning.uploads": {
+      "file": "pipeline.tf",
+      "line": 7,
+      "code": "resource \"aws_s3_bucket_versioning\" \"uploads\" {\n  bucket = aws_s3_bucket.uploads.id\n  versioning_configuration {\n    status = \"Enabled\"\n  }\n}"
+    },
+    "aws_s3_bucket_server_side_encryption_configuration.uploads": {
+      "file": "pipeline.tf",
+      "line": 14,
+      "code": "resource \"aws_s3_bucket_server_side_encryption_configuration\" \"uploads\" {\n  bucket = aws_s3_bucket.uploads.id\n  rule {\n    apply_server_side_encryption_by_default {\n      sse_algorithm = \"aws:kms\"\n    }\n  }\n}"
+    },
+    "aws_s3_bucket_public_access_block.uploads": {
+      "file": "pipeline.tf",
+      "line": 23,
+      "code": "resource \"aws_s3_bucket_public_access_block\" \"uploads\" {\n  bucket                  = aws_s3_bucket.uploads.id\n  block_public_acls       = true\n  block_public_policy     = true\n  ignore_public_acls      = true\n  restrict_public_buckets = true\n}"
+    },
+    "aws_s3_bucket.thumbnails": {
+      "file": "pipeline.tf",
+      "line": 31,
+      "code": "resource \"aws_s3_bucket\" \"thumbnails\" {\n  bucket = \"${local.name}-thumbnails\"\n}"
+    },
+    "aws_s3_bucket_server_side_encryption_configuration.thumbnails": {
+      "file": "pipeline.tf",
+      "line": 35,
+      "code": "resource \"aws_s3_bucket_server_side_encryption_configuration\" \"thumbnails\" {\n  bucket = aws_s3_bucket.thumbnails.id\n  rule {\n    apply_server_side_encryption_by_default {\n      sse_algorithm = \"AES256\"\n    }\n  }\n}"
+    },
+    "aws_s3_bucket_public_access_block.thumbnails": {
+      "file": "pipeline.tf",
+      "line": 44,
+      "code": "resource \"aws_s3_bucket_public_access_block\" \"thumbnails\" {\n  bucket                  = aws_s3_bucket.thumbnails.id\n  block_public_acls       = true\n  block_public_policy     = true\n  ignore_public_acls      = true\n  restrict_public_buckets = true\n}"
+    },
+    "aws_s3_bucket_lifecycle_configuration.thumbnails": {
+      "file": "pipeline.tf",
+      "line": 52,
+      "code": "resource \"aws_s3_bucket_lifecycle_configuration\" \"thumbnails\" {\n  bucket = aws_s3_bucket.thumbnails.id\n  rule {\n    id     = \"expire-old-versions\"\n    status = \"Enabled\"\n    filter {}\n    noncurrent_version_expiration {\n      noncurrent_days = 30\n    }\n  }\n}"
+    },
+    "aws_sqs_queue.uploaded_dlq": {
+      "file": "pipeline.tf",
+      "line": 64,
+      "code": "resource \"aws_sqs_queue\" \"uploaded_dlq\" {\n  name                      = \"${local.name}-uploaded-dlq\"\n  message_retention_seconds = 1209600\n}"
+    },
+    "aws_sqs_queue.uploaded": {
+      "file": "pipeline.tf",
+      "line": 69,
+      "code": "resource \"aws_sqs_queue\" \"uploaded\" {\n  name                       = \"${local.name}-uploaded\"\n  visibility_timeout_seconds = 360\n  message_retention_seconds  = 345600\n  receive_wait_time_seconds  = 20\n  sqs_managed_sse_enabled    = true\n  redrive_policy = jsonencode({\n    deadLetterTargetArn = aws_sqs_queue.uploaded_dlq.arn\n    maxReceiveCount     = 5\n  })\n}"
+    },
+    "aws_s3_bucket_notification.uploads": {
+      "file": "pipeline.tf",
+      "line": 81,
+      "code": "resource \"aws_s3_bucket_notification\" \"uploads\" {\n  bucket = aws_s3_bucket.uploads.id\n  queue {\n    queue_arn     = aws_sqs_queue.uploaded.arn\n    events        = [\"s3:ObjectCreated:*\"]\n    filter_prefix = \"originals/\"\n  }\n}"
+    },
+    "aws_dynamodb_table.photos": {
+      "file": "pipeline.tf",
+      "line": 90,
+      "code": "resource \"aws_dynamodb_table\" \"photos\" {\n  name         = \"${local.name}-photos\"\n  billing_mode = \"PAY_PER_REQUEST\"\n  hash_key     = \"photo_id\"\n  attribute {\n    name = \"photo_id\"\n    type = \"S\"\n  }\n  point_in_time_recovery {\n    enabled = true\n  }\n  server_side_encryption {\n    enabled = true\n  }\n  deletion_protection_enabled = true\n}"
+    },
+    "aws_lambda_function.thumbnail": {
+      "file": "pipeline.tf",
+      "line": 107,
+      "code": "resource \"aws_lambda_function\" \"thumbnail\" {\n  function_name = \"${local.name}-thumbnail\"\n  role          = aws_iam_role.thumbnail.arn\n  runtime       = \"python3.12\"\n  handler       = \"app.handler\"\n  filename      = \"thumbnail.zip\"\n  architectures = [\"arm64\"]\n  memory_size   = 1024\n  timeout       = 60\n  tracing_config {\n    mode = \"Active\"\n  }\n  environment {\n    variables = {\n      SOURCE_BUCKET = aws_s3_bucket.uploads.bucket\n      DEST_BUCKET   = aws_s3_bucket.thumbnails.bucket\n      PHOTOS_TABLE  = aws_dynamodb_table.photos.name\n    }\n  }\n}"
+    },
+    "aws_lambda_event_source_mapping.uploaded": {
+      "file": "pipeline.tf",
+      "line": 128,
+      "code": "resource \"aws_lambda_event_source_mapping\" \"uploaded\" {\n  event_source_arn                   = aws_sqs_queue.uploaded.arn\n  function_name                      = aws_lambda_function.thumbnail.arn\n  batch_size                         = 10\n  maximum_batching_window_in_seconds = 5\n  function_response_types            = [\"ReportBatchItemFailures\"]\n  scaling_config {\n    maximum_concurrency = 20\n  }\n}"
+    }
+  },
+  "views": {
+    "network": {
+      "nodes": [
+        "region:ap-northeast-1",
+        "aws_vpc.main",
+        "tier:aws_vpc.main:app",
+        "tier:aws_vpc.main:db",
+        "tier:aws_vpc.main:public",
+        "aws_db_instance.main",
+        "aws_ecs_service.api",
+        "aws_internet_gateway.main",
+        "aws_lb.public",
+        "aws_nat_gateway.main",
+        "internet"
+      ],
+      "parents": {
+        "aws_db_instance.main": "tier:aws_vpc.main:db",
+        "aws_ecs_service.api": "tier:aws_vpc.main:app",
+        "aws_internet_gateway.main": "aws_vpc.main",
+        "aws_lb.public": "tier:aws_vpc.main:public",
+        "aws_nat_gateway.main": "tier:aws_vpc.main:public",
+        "tier:aws_vpc.main:app": "aws_vpc.main",
+        "tier:aws_vpc.main:db": "aws_vpc.main",
+        "tier:aws_vpc.main:public": "aws_vpc.main",
+        "aws_vpc.main": "region:ap-northeast-1"
+      },
+      "edges": [
+        {
+          "source": "aws_internet_gateway.main",
+          "target": "aws_lb.public",
+          "kind": "sg",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "SG ルール tcp/80 を許可",
+              "address": "aws_vpc_security_group_ingress_rule.alb_http"
+            },
+            {
+              "text": "SG ルール tcp/443 を許可",
+              "address": "aws_vpc_security_group_ingress_rule.alb_https"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "sg:aws_internet_gateway.main->aws_lb.public",
+          "label": "tcp/80, tcp/443"
+        },
+        {
+          "source": "aws_lb.public",
+          "target": "aws_ecs_service.api",
+          "kind": "sg",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "SG ルール tcp/8080 を許可",
+              "address": "aws_vpc_security_group_ingress_rule.api_from_alb"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "sg:aws_lb.public->aws_ecs_service.api",
+          "label": "tcp/8080"
+        },
+        {
+          "source": "aws_ecs_service.api",
+          "target": "aws_db_instance.main",
+          "kind": "sg",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "SG ルール tcp/5432 を許可",
+              "address": "aws_vpc_security_group_ingress_rule.db_from_api"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "sg:aws_ecs_service.api->aws_db_instance.main",
+          "label": "tcp/5432"
+        },
+        {
+          "source": "tier:aws_vpc.main:app",
+          "target": "aws_nat_gateway.main",
+          "kind": "route",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "0.0.0.0/0 の経路",
+              "address": "aws_route_table.app"
+            },
+            {
+              "text": "サブネットに関連付け",
+              "address": "aws_route_table_association.app_a"
+            },
+            {
+              "text": "0.0.0.0/0 の経路",
+              "address": "aws_route_table.app"
+            },
+            {
+              "text": "サブネットに関連付け",
+              "address": "aws_route_table_association.app_c"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "route:tier:aws_vpc.main:app->aws_nat_gateway.main",
+          "label": "0.0.0.0/0"
+        },
+        {
+          "source": "aws_nat_gateway.main",
+          "target": "aws_internet_gateway.main",
+          "kind": "route",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "0.0.0.0/0 の経路",
+              "address": "aws_route_table.public"
+            },
+            {
+              "text": "サブネットに関連付け",
+              "address": "aws_route_table_association.public_a"
+            },
+            {
+              "text": "0.0.0.0/0 の経路",
+              "address": "aws_route_table.public"
+            },
+            {
+              "text": "サブネットに関連付け",
+              "address": "aws_route_table_association.public_c"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "route:aws_nat_gateway.main->aws_internet_gateway.main",
+          "label": "0.0.0.0/0"
+        },
+        {
+          "source": "internet",
+          "target": "aws_internet_gateway.main",
+          "kind": "route",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "Internet Gateway",
+              "address": "aws_internet_gateway.main"
+            }
+          ],
+          "actions": [],
+          "bidirectional": true,
+          "strength": null,
+          "id": "route:internet->aws_internet_gateway.main",
+          "label": ""
+        }
+      ]
+    },
+    "iam": {
+      "nodes": [
+        "aws_lambda_function.thumbnail",
+        "aws_iam_role.thumbnail",
+        "aws_ecs_service.api",
+        "aws_iam_role.api_task",
+        "aws_iam_role.api_exec",
+        "aws_secretsmanager_secret.db",
+        "aws_s3_bucket.uploads",
+        "aws_dynamodb_table.photos",
+        "aws_s3_bucket.thumbnails",
+        "aws_sqs_queue.uploaded"
+      ],
+      "parents": {},
+      "edges": [
+        {
+          "source": "aws_lambda_function.thumbnail",
+          "target": "aws_iam_role.thumbnail",
+          "kind": "assume",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "実行ロールとして指定",
+              "address": "aws_lambda_function.thumbnail"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "assume:aws_lambda_function.thumbnail->aws_iam_role.thumbnail",
+          "label": "実行ロール"
+        },
+        {
+          "source": "aws_ecs_service.api",
+          "target": "aws_iam_role.api_task",
+          "kind": "assume",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "タスクロールとして指定",
+              "address": "aws_ecs_task_definition.api"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "assume:aws_ecs_service.api->aws_iam_role.api_task",
+          "label": "タスクロール"
+        },
+        {
+          "source": "aws_ecs_service.api",
+          "target": "aws_iam_role.api_exec",
+          "kind": "assume",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "タスク実行ロールとして指定",
+              "address": "aws_ecs_task_definition.api"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "assume:aws_ecs_service.api->aws_iam_role.api_exec",
+          "label": "タスク実行ロール"
+        },
+        {
+          "source": "aws_iam_role.api_exec",
+          "target": "aws_secretsmanager_secret.db",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.api_exec"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_exec"
+            }
+          ],
+          "actions": [
+            "secretsmanager:GetSecretValue"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "allow:aws_iam_role.api_exec->aws_secretsmanager_secret.db",
+          "label": "secretsmanager:GetSecretValue"
+        },
+        {
+          "source": "aws_iam_role.api_task",
+          "target": "aws_s3_bucket.uploads",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.api_task"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_task"
+            }
+          ],
+          "actions": [
+            "s3:PutObject"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "allow:aws_iam_role.api_task->aws_s3_bucket.uploads",
+          "label": "s3:PutObject"
+        },
+        {
+          "source": "aws_iam_role.api_task",
+          "target": "aws_dynamodb_table.photos",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.api_task"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_task"
+            }
+          ],
+          "actions": [
+            "dynamodb:GetItem",
+            "dynamodb:Query"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "allow:aws_iam_role.api_task->aws_dynamodb_table.photos",
+          "label": "dynamodb:GetItem/Query"
+        },
+        {
+          "source": "aws_iam_role.api_task",
+          "target": "aws_s3_bucket.thumbnails",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.api_task"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_task"
+            }
+          ],
+          "actions": [
+            "s3:GetObject"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "allow:aws_iam_role.api_task->aws_s3_bucket.thumbnails",
+          "label": "s3:GetObject"
+        },
+        {
+          "source": "aws_iam_role.thumbnail",
+          "target": "aws_sqs_queue.uploaded",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "sqs:ReceiveMessage",
+            "sqs:DeleteMessage",
+            "sqs:GetQueueAttributes"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "allow:aws_iam_role.thumbnail->aws_sqs_queue.uploaded",
+          "label": "sqs:ReceiveMessage/DeleteMessage/GetQueueAttributes"
+        },
+        {
+          "source": "aws_iam_role.thumbnail",
+          "target": "aws_s3_bucket.uploads",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "s3:GetObject"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "allow:aws_iam_role.thumbnail->aws_s3_bucket.uploads",
+          "label": "s3:GetObject"
+        },
+        {
+          "source": "aws_iam_role.thumbnail",
+          "target": "aws_s3_bucket.thumbnails",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "s3:PutObject"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "allow:aws_iam_role.thumbnail->aws_s3_bucket.thumbnails",
+          "label": "s3:PutObject"
+        },
+        {
+          "source": "aws_iam_role.thumbnail",
+          "target": "aws_dynamodb_table.photos",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "allow:aws_iam_role.thumbnail->aws_dynamodb_table.photos",
+          "label": "dynamodb:PutItem/UpdateItem"
+        },
+        {
+          "source": "aws_s3_bucket.uploads",
+          "target": "aws_sqs_queue.uploaded",
+          "kind": "resource-policy",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "リソースベースポリシー",
+              "address": "aws_sqs_queue_policy.uploaded"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.uploaded_queue"
+            }
+          ],
+          "actions": [
+            "sqs:SendMessage"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "resource-policy:aws_s3_bucket.uploads->aws_sqs_queue.uploaded",
+          "label": "sqs:SendMessage"
+        }
+      ]
+    },
+    "data": {
+      "nodes": [
+        "region:ap-northeast-1",
+        "aws_vpc.main",
+        "internet",
+        "aws_lb.public",
+        "aws_ecs_service.api",
+        "aws_s3_bucket.uploads",
+        "aws_sqs_queue.uploaded",
+        "aws_lambda_function.thumbnail",
+        "aws_sqs_queue.uploaded_dlq",
+        "aws_secretsmanager_secret.db",
+        "aws_dynamodb_table.photos",
+        "aws_s3_bucket.thumbnails",
+        "aws_db_instance.main"
+      ],
+      "parents": {
+        "aws_lb.public": "aws_vpc.main",
+        "aws_ecs_service.api": "aws_vpc.main",
+        "aws_s3_bucket.uploads": "region:ap-northeast-1",
+        "aws_sqs_queue.uploaded": "region:ap-northeast-1",
+        "aws_lambda_function.thumbnail": "region:ap-northeast-1",
+        "aws_sqs_queue.uploaded_dlq": "region:ap-northeast-1",
+        "aws_secretsmanager_secret.db": "region:ap-northeast-1",
+        "aws_dynamodb_table.photos": "region:ap-northeast-1",
+        "aws_s3_bucket.thumbnails": "region:ap-northeast-1",
+        "aws_db_instance.main": "aws_vpc.main",
+        "aws_vpc.main": "region:ap-northeast-1"
+      },
+      "edges": [
+        {
+          "source": "internet",
+          "target": "aws_lb.public",
+          "kind": "flow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "リスナー",
+              "address": "aws_lb_listener.http"
+            },
+            {
+              "text": "リスナー",
+              "address": "aws_lb_listener.https"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "flow:internet->aws_lb.public",
+          "label": "HTTP :80, HTTPS :443"
+        },
+        {
+          "source": "aws_lb.public",
+          "target": "aws_ecs_service.api",
+          "kind": "flow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "ターゲットグループ",
+              "address": "aws_lb_target_group.api"
+            },
+            {
+              "text": "サービスの load_balancer",
+              "address": "aws_ecs_service.api"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "flow:aws_lb.public->aws_ecs_service.api",
+          "label": "HTTP :8080"
+        },
+        {
+          "source": "aws_s3_bucket.uploads",
+          "target": "aws_sqs_queue.uploaded",
+          "kind": "flow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "S3 イベント通知",
+              "address": "aws_s3_bucket_notification.uploads"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "flow:aws_s3_bucket.uploads->aws_sqs_queue.uploaded",
+          "label": "s3:ObjectCreated:*"
+        },
+        {
+          "source": "aws_sqs_queue.uploaded",
+          "target": "aws_lambda_function.thumbnail",
+          "kind": "flow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "Event Source Mapping",
+              "address": "aws_lambda_event_source_mapping.uploaded"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "flow:aws_sqs_queue.uploaded->aws_lambda_function.thumbnail",
+          "label": "poll (batch 10)"
+        },
+        {
+          "source": "aws_sqs_queue.uploaded",
+          "target": "aws_sqs_queue.uploaded_dlq",
+          "kind": "flow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "redrive_policy で DLQ を指定",
+              "address": "aws_sqs_queue.uploaded"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "flow:aws_sqs_queue.uploaded->aws_sqs_queue.uploaded_dlq",
+          "label": "処理失敗時 (redrive)"
+        },
+        {
+          "source": "aws_secretsmanager_secret.db",
+          "target": "aws_ecs_service.api",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "タスク実行ロールのインラインポリシー",
+              "address": "aws_iam_role_policy.api_exec"
+            },
+            {
+              "text": "タスク実行ロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_exec"
+            }
+          ],
+          "actions": [
+            "secretsmanager:GetSecretValue"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_secretsmanager_secret.db->aws_ecs_service.api",
+          "label": "secretsmanager:GetSecretValue"
+        },
+        {
+          "source": "aws_ecs_service.api",
+          "target": "aws_s3_bucket.uploads",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "タスクロールのインラインポリシー",
+              "address": "aws_iam_role_policy.api_task"
+            },
+            {
+              "text": "タスクロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_task"
+            }
+          ],
+          "actions": [
+            "s3:PutObject"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_ecs_service.api->aws_s3_bucket.uploads",
+          "label": "s3:PutObject"
+        },
+        {
+          "source": "aws_dynamodb_table.photos",
+          "target": "aws_ecs_service.api",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "タスクロールのインラインポリシー",
+              "address": "aws_iam_role_policy.api_task"
+            },
+            {
+              "text": "タスクロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_task"
+            }
+          ],
+          "actions": [
+            "dynamodb:GetItem",
+            "dynamodb:Query"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_dynamodb_table.photos->aws_ecs_service.api",
+          "label": "dynamodb:GetItem/Query"
+        },
+        {
+          "source": "aws_s3_bucket.thumbnails",
+          "target": "aws_ecs_service.api",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "タスクロールのインラインポリシー",
+              "address": "aws_iam_role_policy.api_task"
+            },
+            {
+              "text": "タスクロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_task"
+            }
+          ],
+          "actions": [
+            "s3:GetObject"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_s3_bucket.thumbnails->aws_ecs_service.api",
+          "label": "s3:GetObject"
+        },
+        {
+          "source": "aws_s3_bucket.uploads",
+          "target": "aws_lambda_function.thumbnail",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_lambda_function.thumbnail"
+            },
+            {
+              "text": "実行ロールのインラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "実行ロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "s3:GetObject"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_s3_bucket.uploads->aws_lambda_function.thumbnail",
+          "label": "s3:GetObject"
+        },
+        {
+          "source": "aws_lambda_function.thumbnail",
+          "target": "aws_s3_bucket.thumbnails",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_lambda_function.thumbnail"
+            },
+            {
+              "text": "実行ロールのインラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "実行ロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "s3:PutObject"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_lambda_function.thumbnail->aws_s3_bucket.thumbnails",
+          "label": "s3:PutObject"
+        },
+        {
+          "source": "aws_lambda_function.thumbnail",
+          "target": "aws_dynamodb_table.photos",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_lambda_function.thumbnail"
+            },
+            {
+              "text": "実行ロールのインラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "実行ロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_lambda_function.thumbnail->aws_dynamodb_table.photos",
+          "label": "dynamodb:PutItem/UpdateItem"
+        },
+        {
+          "source": "aws_ecs_service.api",
+          "target": "aws_db_instance.main",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "SG ルール tcp/5432 を許可",
+              "address": "aws_vpc_security_group_ingress_rule.db_from_api"
+            }
+          ],
+          "actions": [],
+          "bidirectional": true,
+          "strength": "referenced",
+          "id": "flow:aws_ecs_service.api->aws_db_instance.main",
+          "label": "tcp/5432"
+        }
+      ]
+    },
+    "unified": {
+      "nodes": [
+        "region:ap-northeast-1",
+        "aws_vpc.main",
+        "tier:aws_vpc.main:app",
+        "tier:aws_vpc.main:db",
+        "tier:aws_vpc.main:public",
+        "aws_db_instance.main",
+        "aws_ecs_service.api",
+        "aws_internet_gateway.main",
+        "aws_lb.public",
+        "aws_nat_gateway.main",
+        "internet",
+        "aws_s3_bucket.uploads",
+        "aws_sqs_queue.uploaded",
+        "aws_lambda_function.thumbnail",
+        "aws_sqs_queue.uploaded_dlq",
+        "aws_secretsmanager_secret.db",
+        "aws_dynamodb_table.photos",
+        "aws_s3_bucket.thumbnails",
+        "svc:aws_s3_bucket",
+        "svc:aws_sqs_queue"
+      ],
+      "parents": {
+        "aws_db_instance.main": "tier:aws_vpc.main:db",
+        "aws_ecs_service.api": "tier:aws_vpc.main:app",
+        "aws_internet_gateway.main": "aws_vpc.main",
+        "aws_lb.public": "tier:aws_vpc.main:public",
+        "aws_nat_gateway.main": "tier:aws_vpc.main:public",
+        "tier:aws_vpc.main:app": "aws_vpc.main",
+        "tier:aws_vpc.main:db": "aws_vpc.main",
+        "tier:aws_vpc.main:public": "aws_vpc.main",
+        "aws_vpc.main": "region:ap-northeast-1",
+        "aws_s3_bucket.uploads": "svc:aws_s3_bucket",
+        "aws_sqs_queue.uploaded": "svc:aws_sqs_queue",
+        "aws_lambda_function.thumbnail": "region:ap-northeast-1",
+        "aws_sqs_queue.uploaded_dlq": "svc:aws_sqs_queue",
+        "aws_secretsmanager_secret.db": "region:ap-northeast-1",
+        "aws_dynamodb_table.photos": "region:ap-northeast-1",
+        "aws_s3_bucket.thumbnails": "svc:aws_s3_bucket",
+        "svc:aws_s3_bucket": "region:ap-northeast-1",
+        "svc:aws_sqs_queue": "region:ap-northeast-1"
+      },
+      "edges": [
+        {
+          "source": "aws_internet_gateway.main",
+          "target": "aws_lb.public",
+          "kind": "sg",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "SG ルール tcp/80 を許可",
+              "address": "aws_vpc_security_group_ingress_rule.alb_http"
+            },
+            {
+              "text": "SG ルール tcp/443 を許可",
+              "address": "aws_vpc_security_group_ingress_rule.alb_https"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "sg:aws_internet_gateway.main->aws_lb.public",
+          "label": "tcp/80, tcp/443",
+          "layer": "network"
+        },
+        {
+          "source": "aws_lb.public",
+          "target": "aws_ecs_service.api",
+          "kind": "sg",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "SG ルール tcp/8080 を許可",
+              "address": "aws_vpc_security_group_ingress_rule.api_from_alb"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "sg:aws_lb.public->aws_ecs_service.api",
+          "label": "tcp/8080",
+          "layer": "network"
+        },
+        {
+          "source": "aws_ecs_service.api",
+          "target": "aws_db_instance.main",
+          "kind": "sg",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "SG ルール tcp/5432 を許可",
+              "address": "aws_vpc_security_group_ingress_rule.db_from_api"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "sg:aws_ecs_service.api->aws_db_instance.main",
+          "label": "tcp/5432",
+          "layer": "network"
+        },
+        {
+          "source": "tier:aws_vpc.main:app",
+          "target": "aws_nat_gateway.main",
+          "kind": "route",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "0.0.0.0/0 の経路",
+              "address": "aws_route_table.app"
+            },
+            {
+              "text": "サブネットに関連付け",
+              "address": "aws_route_table_association.app_a"
+            },
+            {
+              "text": "0.0.0.0/0 の経路",
+              "address": "aws_route_table.app"
+            },
+            {
+              "text": "サブネットに関連付け",
+              "address": "aws_route_table_association.app_c"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "route:tier:aws_vpc.main:app->aws_nat_gateway.main",
+          "label": "0.0.0.0/0",
+          "layer": "network"
+        },
+        {
+          "source": "aws_nat_gateway.main",
+          "target": "aws_internet_gateway.main",
+          "kind": "route",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "0.0.0.0/0 の経路",
+              "address": "aws_route_table.public"
+            },
+            {
+              "text": "サブネットに関連付け",
+              "address": "aws_route_table_association.public_a"
+            },
+            {
+              "text": "0.0.0.0/0 の経路",
+              "address": "aws_route_table.public"
+            },
+            {
+              "text": "サブネットに関連付け",
+              "address": "aws_route_table_association.public_c"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "route:aws_nat_gateway.main->aws_internet_gateway.main",
+          "label": "0.0.0.0/0",
+          "layer": "network"
+        },
+        {
+          "source": "internet",
+          "target": "aws_internet_gateway.main",
+          "kind": "route",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "Internet Gateway",
+              "address": "aws_internet_gateway.main"
+            }
+          ],
+          "actions": [],
+          "bidirectional": true,
+          "strength": null,
+          "id": "route:internet->aws_internet_gateway.main",
+          "label": "",
+          "layer": "network"
+        },
+        {
+          "source": "internet",
+          "target": "aws_lb.public",
+          "kind": "flow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "リスナー",
+              "address": "aws_lb_listener.http"
+            },
+            {
+              "text": "リスナー",
+              "address": "aws_lb_listener.https"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "flow:internet->aws_lb.public",
+          "label": "HTTP :80, HTTPS :443",
+          "layer": "data"
+        },
+        {
+          "source": "aws_lb.public",
+          "target": "aws_ecs_service.api",
+          "kind": "flow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "ターゲットグループ",
+              "address": "aws_lb_target_group.api"
+            },
+            {
+              "text": "サービスの load_balancer",
+              "address": "aws_ecs_service.api"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "flow:aws_lb.public->aws_ecs_service.api",
+          "label": "HTTP :8080",
+          "layer": "data"
+        },
+        {
+          "source": "aws_s3_bucket.uploads",
+          "target": "aws_sqs_queue.uploaded",
+          "kind": "flow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "S3 イベント通知",
+              "address": "aws_s3_bucket_notification.uploads"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "flow:aws_s3_bucket.uploads->aws_sqs_queue.uploaded",
+          "label": "s3:ObjectCreated:*",
+          "layer": "data"
+        },
+        {
+          "source": "aws_sqs_queue.uploaded",
+          "target": "aws_lambda_function.thumbnail",
+          "kind": "flow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "Event Source Mapping",
+              "address": "aws_lambda_event_source_mapping.uploaded"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "flow:aws_sqs_queue.uploaded->aws_lambda_function.thumbnail",
+          "label": "poll (batch 10)",
+          "layer": "data"
+        },
+        {
+          "source": "aws_sqs_queue.uploaded",
+          "target": "aws_sqs_queue.uploaded_dlq",
+          "kind": "flow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "redrive_policy で DLQ を指定",
+              "address": "aws_sqs_queue.uploaded"
+            }
+          ],
+          "actions": [],
+          "bidirectional": false,
+          "strength": null,
+          "id": "flow:aws_sqs_queue.uploaded->aws_sqs_queue.uploaded_dlq",
+          "label": "処理失敗時 (redrive)",
+          "layer": "data"
+        },
+        {
+          "source": "aws_secretsmanager_secret.db",
+          "target": "aws_ecs_service.api",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "タスク実行ロールのインラインポリシー",
+              "address": "aws_iam_role_policy.api_exec"
+            },
+            {
+              "text": "タスク実行ロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_exec"
+            }
+          ],
+          "actions": [
+            "secretsmanager:GetSecretValue"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_secretsmanager_secret.db->aws_ecs_service.api",
+          "label": "secretsmanager:GetSecretValue",
+          "layer": "data"
+        },
+        {
+          "source": "aws_ecs_service.api",
+          "target": "aws_s3_bucket.uploads",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "タスクロールのインラインポリシー",
+              "address": "aws_iam_role_policy.api_task"
+            },
+            {
+              "text": "タスクロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_task"
+            }
+          ],
+          "actions": [
+            "s3:PutObject"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_ecs_service.api->aws_s3_bucket.uploads",
+          "label": "s3:PutObject",
+          "layer": "data"
+        },
+        {
+          "source": "aws_dynamodb_table.photos",
+          "target": "aws_ecs_service.api",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "タスクロールのインラインポリシー",
+              "address": "aws_iam_role_policy.api_task"
+            },
+            {
+              "text": "タスクロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_task"
+            }
+          ],
+          "actions": [
+            "dynamodb:GetItem",
+            "dynamodb:Query"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_dynamodb_table.photos->aws_ecs_service.api",
+          "label": "dynamodb:GetItem/Query",
+          "layer": "data"
+        },
+        {
+          "source": "aws_s3_bucket.thumbnails",
+          "target": "aws_ecs_service.api",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "タスクロールのインラインポリシー",
+              "address": "aws_iam_role_policy.api_task"
+            },
+            {
+              "text": "タスクロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_task"
+            }
+          ],
+          "actions": [
+            "s3:GetObject"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_s3_bucket.thumbnails->aws_ecs_service.api",
+          "label": "s3:GetObject",
+          "layer": "data"
+        },
+        {
+          "source": "aws_s3_bucket.uploads",
+          "target": "aws_lambda_function.thumbnail",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_lambda_function.thumbnail"
+            },
+            {
+              "text": "実行ロールのインラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "実行ロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "s3:GetObject"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_s3_bucket.uploads->aws_lambda_function.thumbnail",
+          "label": "s3:GetObject",
+          "layer": "data"
+        },
+        {
+          "source": "aws_lambda_function.thumbnail",
+          "target": "aws_s3_bucket.thumbnails",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_lambda_function.thumbnail"
+            },
+            {
+              "text": "実行ロールのインラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "実行ロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "s3:PutObject"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_lambda_function.thumbnail->aws_s3_bucket.thumbnails",
+          "label": "s3:PutObject",
+          "layer": "data"
+        },
+        {
+          "source": "aws_lambda_function.thumbnail",
+          "target": "aws_dynamodb_table.photos",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_lambda_function.thumbnail"
+            },
+            {
+              "text": "実行ロールのインラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "実行ロールのポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem"
+          ],
+          "bidirectional": false,
+          "strength": "referenced",
+          "id": "flow:aws_lambda_function.thumbnail->aws_dynamodb_table.photos",
+          "label": "dynamodb:PutItem/UpdateItem",
+          "layer": "data"
+        },
+        {
+          "source": "aws_ecs_service.api",
+          "target": "aws_db_instance.main",
+          "kind": "flow",
+          "inferred": true,
+          "evidence": [
+            {
+              "text": "環境変数などで接続先として参照",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "SG ルール tcp/5432 を許可",
+              "address": "aws_vpc_security_group_ingress_rule.db_from_api"
+            }
+          ],
+          "actions": [],
+          "bidirectional": true,
+          "strength": "referenced",
+          "id": "flow:aws_ecs_service.api->aws_db_instance.main",
+          "label": "tcp/5432",
+          "layer": "data"
+        },
+        {
+          "source": "aws_ecs_service.api",
+          "target": "aws_secretsmanager_secret.db",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "タスク実行ロールとして指定",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.api_exec"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_exec"
+            }
+          ],
+          "actions": [
+            "secretsmanager:GetSecretValue"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "perm:aws_ecs_service.api->aws_secretsmanager_secret.db",
+          "label": "secretsmanager:GetSecretValue",
+          "layer": "iam"
+        },
+        {
+          "source": "aws_ecs_service.api",
+          "target": "aws_s3_bucket.uploads",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "タスクロールとして指定",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.api_task"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_task"
+            }
+          ],
+          "actions": [
+            "s3:PutObject"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "perm:aws_ecs_service.api->aws_s3_bucket.uploads",
+          "label": "s3:PutObject",
+          "layer": "iam"
+        },
+        {
+          "source": "aws_ecs_service.api",
+          "target": "aws_dynamodb_table.photos",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "タスクロールとして指定",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.api_task"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_task"
+            }
+          ],
+          "actions": [
+            "dynamodb:GetItem",
+            "dynamodb:Query"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "perm:aws_ecs_service.api->aws_dynamodb_table.photos",
+          "label": "dynamodb:GetItem/Query",
+          "layer": "iam"
+        },
+        {
+          "source": "aws_ecs_service.api",
+          "target": "aws_s3_bucket.thumbnails",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "タスクロールとして指定",
+              "address": "aws_ecs_task_definition.api"
+            },
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.api_task"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.api_task"
+            }
+          ],
+          "actions": [
+            "s3:GetObject"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "perm:aws_ecs_service.api->aws_s3_bucket.thumbnails",
+          "label": "s3:GetObject",
+          "layer": "iam"
+        },
+        {
+          "source": "aws_lambda_function.thumbnail",
+          "target": "aws_sqs_queue.uploaded",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "実行ロールとして指定",
+              "address": "aws_lambda_function.thumbnail"
+            },
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "sqs:ReceiveMessage",
+            "sqs:DeleteMessage",
+            "sqs:GetQueueAttributes"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "perm:aws_lambda_function.thumbnail->aws_sqs_queue.uploaded",
+          "label": "sqs:ReceiveMessage/DeleteMessage/GetQueueAttributes",
+          "layer": "iam"
+        },
+        {
+          "source": "aws_lambda_function.thumbnail",
+          "target": "aws_s3_bucket.uploads",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "実行ロールとして指定",
+              "address": "aws_lambda_function.thumbnail"
+            },
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "s3:GetObject"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "perm:aws_lambda_function.thumbnail->aws_s3_bucket.uploads",
+          "label": "s3:GetObject",
+          "layer": "iam"
+        },
+        {
+          "source": "aws_lambda_function.thumbnail",
+          "target": "aws_s3_bucket.thumbnails",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "実行ロールとして指定",
+              "address": "aws_lambda_function.thumbnail"
+            },
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "s3:PutObject"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "perm:aws_lambda_function.thumbnail->aws_s3_bucket.thumbnails",
+          "label": "s3:PutObject",
+          "layer": "iam"
+        },
+        {
+          "source": "aws_lambda_function.thumbnail",
+          "target": "aws_dynamodb_table.photos",
+          "kind": "allow",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "実行ロールとして指定",
+              "address": "aws_lambda_function.thumbnail"
+            },
+            {
+              "text": "インラインポリシー",
+              "address": "aws_iam_role_policy.thumbnail"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.thumbnail"
+            }
+          ],
+          "actions": [
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "perm:aws_lambda_function.thumbnail->aws_dynamodb_table.photos",
+          "label": "dynamodb:PutItem/UpdateItem",
+          "layer": "iam"
+        },
+        {
+          "source": "aws_s3_bucket.uploads",
+          "target": "aws_sqs_queue.uploaded",
+          "kind": "resource-policy",
+          "inferred": false,
+          "evidence": [
+            {
+              "text": "リソースベースポリシー",
+              "address": "aws_sqs_queue_policy.uploaded"
+            },
+            {
+              "text": "ポリシーの中身",
+              "address": "data.aws_iam_policy_document.uploaded_queue"
+            }
+          ],
+          "actions": [
+            "sqs:SendMessage"
+          ],
+          "bidirectional": false,
+          "strength": null,
+          "id": "rp:aws_s3_bucket.uploads->aws_sqs_queue.uploaded",
+          "label": "sqs:SendMessage",
+          "layer": "iam"
+        }
+      ],
+      "warnings": [],
+      "collapsed": []
+    }
+  }
+}

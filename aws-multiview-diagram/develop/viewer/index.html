@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tfscope — IaC から生える構成図</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='1' y='1' width='30' height='30' fill='%23f6f2ea' stroke='%23202838' stroke-width='2'/%3E%3Crect x='6' y='6' width='10' height='10' fill='%235b4bdb'/%3E%3Crect x='17' y='17' width='10' height='10' fill='%23202838'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>tfscope</h1>
+          <p class="brand-sub">terraform plan から生える、視点を切り替えられる構成図</p>
+        </div>
+      </div>
+      <nav class="views" aria-label="視点の切り替え" role="tablist"></nav>
+    </header>
+    <main class="workspace">
+      <section class="canvas-wrap" aria-label="構成図">
+        <div class="view-bar">
+          <p class="view-desc" id="view-desc"></p>
+          <label class="search">
+            <span class="visually-hidden">リソースを名前で探す</span>
+            <input id="search" type="search" list="search-list" placeholder="名前で探す（/）" autocomplete="off" />
+            <datalist id="search-list"></datalist>
+          </label>
+        </div>
+        <div class="canvas-area"><div id="cy" class="canvas"></div><p class="empty-note" id="empty-note" hidden></p></div>
+        <footer class="canvas-foot">
+          <ul class="legend" id="legend" aria-label="凡例"></ul>
+          <p class="hint">クリックで詳細 ／ 枠はダブルクリックで折りたたみ ／ <kbd>1</kbd>〜<kbd>4</kbd> で視点切替 ／ <kbd>/</kbd> で検索 ／ <kbd>Esc</kbd> で解除</p>
+        </footer>
+      </section>
+      <aside class="panel" id="panel" aria-live="polite"></aside>
+    </main>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
